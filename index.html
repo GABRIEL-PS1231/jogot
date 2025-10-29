@@ -6,6 +6,8 @@
 <title>Zombie Survival 3D — Enhanced</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;700&display=swap" rel="stylesheet">
+<!-- inline minimal favicon (avoids 404) -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Crect width='16' height='16' fill='%23000'/%3E%3C/svg%3E">
 <style>
   :root { --accent: #ff3b3b; --muted: #bfbfbf; --bg: #020205; }
   html,body{height:100%;margin:0;font-family:'Chakra Petch',sans-serif;background:linear-gradient(180deg,#08060a 0%, #1b1a1f 100%); color: #e6e6e6;}
@@ -82,6 +84,7 @@
 </div>
 
 <script type="module">
+  // Imports via CDN to run on GitHub Pages without bundler
   import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
   import { PointerLockControls } from "https://unpkg.com/three@0.160.0/examples/jsm/controls/PointerLockControls.js";
 
@@ -200,6 +203,8 @@
 
     // audio
     try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ audioCtx = null; }
+    // expose audioCtx so overlay can resume it
+    window.audioCtx = audioCtx;
     if (audioCtx) {
       gunBuffer = makeGunShotBuffer();
       hitBuffer = makeHitBuffer();
@@ -231,13 +236,12 @@
     scoreEl.textContent = '0';
     healthBar.style.width = '100%';
     crosshair.style.display = 'block';
-    controls.lock();
+    try { controls.lock(); } catch(e){}
     lastSpawn = Date.now();
   }
 
   function restartGame() {
     gameOverModal.classList.add('hidden');
-    // cleanup
     Object.keys(zombieObjects).forEach(id => {
       scene.remove(zombieObjects[id]);
       delete zombieObjects[id]; delete zombies[id];
@@ -253,7 +257,7 @@
 
   function animate() {
     requestAnimationFrame(animate);
-    const dt = Math.min(0.05, clock.getDelta()); // clamp dt for stability
+    const dt = Math.min(0.05, clock.getDelta());
     if (gameActive) {
       applyMovement(dt);
       hostTick(dt);
@@ -265,12 +269,10 @@
   }
 
   function hostTick(dt) {
-    // spawn logic with cap
     if (Date.now() - lastSpawn > Math.max(800, 3000 - localPlayer.score/20) && Object.keys(zombieObjects).length < MAX_ZOMBIES) {
       lastSpawn = Date.now();
       spawnZombie();
     }
-    // spawn occasional powerup near player
     if (Math.random() < 0.0009) spawnPowerup();
   }
 
@@ -306,29 +308,21 @@
     Object.entries(zombieObjects).forEach(([id, obj]) => {
       if (!obj) return;
       const data = obj.userData;
-      // remove if too far or too many seconds alive offscreen
       const distToPlayer = obj.position.distanceTo(pPos);
       if (distToPlayer > 800) {
         scene.remove(obj);
         delete zombieObjects[id]; delete zombies[id];
         return;
       }
-      // movement towards player on XZ plane
       const target = new THREE.Vector3(pPos.x, obj.position.y, pPos.z);
       const dir = target.clone().sub(obj.position);
       const dist = dir.length();
       if (dist > 0.01) dir.normalize();
       const speed = data.speed * (1 + localPlayer.score/1500);
       obj.position.addScaledVector(dir, speed * dt);
-      // rotate smoothly towards player (Y only)
       const desiredAngle = Math.atan2(pPos.x - obj.position.x, pPos.z - obj.position.z);
       obj.rotation.y += (desiredAngle - obj.rotation.y) * 0.08;
-
-      // subtle bob
-      const t = performance.now()/400 + (obj.userData._offset || 0);
       obj.position.y = Math.abs(Math.sin(performance.now()/300 + (obj.userData._offset||0))*0.04);
-
-      // attack if near
       if (dist < 1.4 && gameActive) {
         if (!obj.userData._lastHit || Date.now() - obj.userData._lastHit > 1000) {
           obj.userData._lastHit = Date.now();
@@ -343,9 +337,7 @@
     });
   }
 
-  function handleCollisions() {
-    // used for future physics; currently shooting is raycast-based in shoot()
-  }
+  function handleCollisions() {}
 
   function onMouseDown(e) {
     if (!gameActive) return;
@@ -376,7 +368,6 @@
     const velocityZ = forward * speed * dt;
     controls.getObject().translateX(velocityX);
     controls.getObject().translateZ(velocityZ);
-    // gravity
     velocity.y -= 9.8 * dt;
     controls.getObject().position.y += velocity.y * dt;
     if (controls.getObject().position.y < 1.6) {
@@ -644,5 +635,62 @@
   });
 
 </script>
+
+<!-- Start overlay + debug utilities: garante gesto do usuário para áudio/pointer lock -->
+<script>
+(function () {
+  function ensure() {
+    const lobby = document.getElementById('lobby');
+    const startBtn = document.getElementById('start');
+    if (!lobby || !startBtn) { setTimeout(ensure, 200); return; }
+    if (!document.getElementById('start-overlay')) {
+      const overlay = document.createElement('div');
+      overlay.id = 'start-overlay';
+      overlay.style = [
+        'position:fixed',
+        'inset:0',
+        'display:flex',
+        'align-items:center',
+        'justify-content:center',
+        'background:linear-gradient(180deg,rgba(0,0,0,0.6),rgba(0,0,0,0.75))',
+        'z-index:60',
+        'backdrop-filter: blur(2px)'
+      ].join(';');
+      const btn = document.createElement('button');
+      btn.textContent = 'Clique para Começar';
+      btn.style = 'padding:16px 22px;border-radius:10px;background:#ff3b3b;color:white;border:none;font-size:18px;cursor:pointer';
+      btn.id = 'start-overlay-btn';
+      overlay.appendChild(btn);
+      document.body.appendChild(overlay);
+
+      btn.addEventListener('click', async function () {
+        overlay.remove();
+        if (window.audioCtx && window.audioCtx.state === 'suspended') {
+          try { await window.audioCtx.resume(); } catch(e) { console.warn('audio resume failed', e); }
+        }
+        if (startBtn) startBtn.click();
+        try {
+          const canvas = document.querySelector('canvas');
+          if (canvas && canvas.requestPointerLock) {
+            canvas.requestPointerLock();
+          } else if (typeof document.body.requestPointerLock === 'function') {
+            document.body.requestPointerLock();
+          }
+        } catch(e){ console.warn('pointer lock request failed', e); }
+      });
+    }
+
+    window.__game_debug = {
+      clickStart: function(){ document.getElementById('start')?.click(); },
+      hideLobby: function(){ document.getElementById('lobby')?.classList.add('hidden'); },
+      showLobby: function(){ document.getElementById('lobby')?.classList.remove('hidden'); },
+      listEvents: function(elId){ try { console.log(getEventListeners(document.getElementById(elId))); } catch(e){ console.log('getEventListeners not supported in this browser'); } }
+    };
+    console.log('Start overlay and debug utilities installed. Use __game_debug.clickStart() to trigger start programmatically.');
+  }
+  ensure();
+})();
+</script>
+
 </body>
 </html>
