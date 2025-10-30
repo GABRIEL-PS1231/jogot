@@ -199,28 +199,37 @@
 <script type="module">
   import * as THREE from "three";
   import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
-
+  import { EXRLoader } from "three/addons/loaders/EXRLoader.js";
+  import { OBJLoader } from "three/addons/loaders/OBJLoader.js"; // <-- NOVO
+  import { MTLLoader } from "three/addons/loaders/MTLLoader.js"; // <-- NOVO
+  import { FBXLoader } from "three/addons/loaders/FBXLoader.js"; // <-- NOVO
+  
   // Optional Firebase hook (keep null by default)
   const FIREBASE_CONFIG = null;
 
   //
   // ==================================================================================
-  // ===== ÁREA DE TEXTURAS E SKINS (SEU ESPAÇO PARA EDITAR) =====
+  // ===== ÁREA DE TEXTURAS E MODELOS (SEU ESPAÇO PARA EDITAR) =====
   // ==================================================================================
   
-  // Para adicionar uma textura no chão, cole a URL aqui.
-  // Ex: 'https://cdn.ambientcg.com/asset-variants/Ground037/Ground037_2K_Color.jpg'
-  // Deixe `null` para usar a cor cinza padrão.
-  const URL_TEXTURA_CHAO = null;
+  // NOME DO ARQUIVO da textura do chão (Ex: 'minha-textura.jpg')
+  const NOME_ARQUIVO_CHAO = null;
 
-  // Para adicionar skins de zumbis da internet, cole as URLs aqui.
-  // O jogo vai escolher uma aleatoriamente para cada zumbi.
-  // Se o array ficar vazio, o jogo usará as skins procedurais (canvas).
-  // Ex: [ 'https://meusite.com/skin1.jpg', 'https://meusite.com/skin2.png' ]
-  const URLS_SKINS_ZUMBIS = [];
+  // NOME DO ARQUIVO do seu HDRI (Ex: 'meu_hdri.exr')
+  const NOME_ARQUIVO_HDRI = null; 
 
+  // --- MODELO DA ARMA ---
+  // NOME DO ARQUIVO .obj da sua arma
+  const NOME_ARQUIVO_ARMA_OBJ = null; // Ex: 'Gun.obj'
+  // NOME DO ARQUIVO .mtl da sua arma (IMPORTANTE: edite este arquivo, veja o guia)
+  const NOME_ARQUIVO_ARMA_MTL = null; // Ex: 'Gun.mtl'
+  
+  // --- MODELO DO ZUMBI ---
+  // NOME DO ARQUIVO .fbx do seu zumbi (modelo estático por enquanto)
+  const NOME_ARQUIVO_ZUMBI_FBX = null; // Ex: 'characterMedium.fbx'
+  
   // ==================================================================================
-  // ===== FIM DA ÁREA DE TEXTURAS =====
+  // ===== FIM DA ÁREA DE TEXTURAS E MODELOS =====
   // ==================================================================================
   //
 
@@ -258,7 +267,15 @@
   let canJump = true;
   const MAX_ZOMBIES = 45;
   const isTouchDevice = 'ontouchstart' in window;
-  const textureLoader = new THREE.TextureLoader(); // Um loader para o jogo todo
+  
+  // Loaders
+  const textureLoader = new THREE.TextureLoader();
+  const exrLoader = new EXRLoader();
+  const mtlLoader = new MTLLoader();
+  const objLoader = new OBJLoader();
+  const fbxLoader = new FBXLoader();
+  
+  let zombieTemplate = null; // Armazena o modelo do zumbi carregado
 
   init();
 
@@ -271,41 +288,66 @@
     container.appendChild(renderer.domElement);
 
     scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x0c0b0d, 0.0025);
 
     camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1200);
     camera.position.set(0,1.6,0);
 
     clock = new THREE.Clock();
 
-    // lights
-    const hemi = new THREE.HemisphereLight(0x8a7f7a, 0x101014, 0.8);
-    scene.add(hemi);
+    // --- LUZES E CÉU (NOVA LÓGICA) ---
+    if (NOME_ARQUIVO_HDRI) {
+        exrLoader.load(NOME_ARQUIVO_HDRI, (texture) => {
+            texture.mapping = THREE.EquirectangularReflectionMapping;
+            scene.background = texture;
+            scene.environment = texture; 
+            console.log("HDRI Carregado com sucesso!");
+        }, null, () => {
+            console.error(`Falha ao carregar HDRI: ${NOME_ARQUIVO_HDRI}. Usando modo offline.`);
+            setupOfflineSkyAndLights();
+        });
+        scene.fog = new THREE.FogExp2(0x0c0b0d, 0.0025);
+    } else {
+        setupOfflineSkyAndLights();
+    }
+    // --- FIM LUZES E CÉU ---
 
-    const dir = new THREE.DirectionalLight(0xffcc88, 1.0);
-    dir.position.set(-30,40,20);
-    dir.castShadow = true;
-    dir.shadow.camera.left = -80; dir.shadow.camera.right = 80; dir.shadow.camera.top = 80; dir.shadow.camera.bottom = -80;
-    dir.shadow.mapSize.set(1024,1024); // slightly smaller for perf
-    scene.add(dir);
+    function setupOfflineSkyAndLights() {
+        scene.fog = new THREE.FogExp2(0x0c0b0d, 0.0025);
+        const hemi = new THREE.HemisphereLight(0x8a7f7a, 0x101014, 0.8);
+        scene.add(hemi);
+        const dir = new THREE.DirectionalLight(0xffcc88, 1.0);
+        dir.position.set(-30,40,20);
+        dir.castShadow = true;
+        dir.shadow.camera.left = -80; dir.shadow.camera.right = 80; dir.shadow.camera.top = 80; dir.shadow.camera.bottom = -80;
+        dir.shadow.mapSize.set(1024,1024);
+        scene.add(dir);
+        createSky(); // Cria o céu procedural
+    }
+
 
     // ground
     let groundMat;
-    if (URL_TEXTURA_CHAO) {
-        const groundTexture = textureLoader.load(
-            URL_TEXTURA_CHAO,
-            (texture) => {
-                texture.wrapS = THREE.RepeatWrapping;
-                texture.wrapT = THREE.RepeatWrapping;
-                texture.repeat.set(100, 100); 
-                texture.needsUpdate = true;
-            }
-        );
-        groundMat = new THREE.MeshStandardMaterial({
-            map: groundTexture, 
-            roughness: 0.8,
-            metalness: 0.1
-        });
+    if (NOME_ARQUIVO_CHAO) {
+        try {
+            const groundTexture = textureLoader.load(
+                NOME_ARQUIVO_CHAO,
+                (texture) => {
+                    texture.wrapS = THREE.RepeatWrapping;
+                    texture.wrapT = THREE.RepeatWrapping;
+                    texture.repeat.set(100, 100); 
+                    texture.needsUpdate = true;
+                },
+                null, 
+                () => { 
+                    console.error(`Falha ao carregar textura do chão: ${NOME_ARQUIVO_CHAO}. Usando cor padrão.`);
+                    ground.material = new THREE.MeshStandardMaterial({color:0x222222, roughness:0.7, metalness:0.05});
+                }
+            );
+            groundMat = new THREE.MeshStandardMaterial({ map: groundTexture, roughness: 0.8, metalness: 0.1 });
+        } catch (e) {
+            console.warn("Erro ao carregar textura. Usando cor padrao.", e);
+            groundMat = new THREE.MeshStandardMaterial({color:0x222222, roughness:0.7, metalness:0.05});
+        }
     } else {
         groundMat = new THREE.MeshStandardMaterial({color:0x222222, roughness:0.7, metalness:0.05});
     }
@@ -313,9 +355,6 @@
     ground.rotation.x = -Math.PI/2;
     ground.receiveShadow = true;
     scene.add(ground);
-
-    // sky (procedural gradient texture for better look)
-    createSky();
 
     // environment (lampposts/crates)
     createEnvironment(scene, 20);
@@ -333,17 +372,20 @@
     scene.add(controls.getObject());
 
     // --- Player weapons ---
-    pistolModel = createPistolModel();
+    pistolModel = createPistolModel(); // Cria o modelo placeholder
     camera.add(pistolModel);
     pistolModel.position.set(0.25,-0.3,-0.6);
+    loadGunModel(); // Tenta carregar o modelo custom
 
     meleeModel = createMeleeModel(); // Katana
     camera.add(meleeModel);
     meleeModel.position.set(0.25, -0.3, -0.7);
     meleeModel.rotation.set(Math.PI / 4, -Math.PI / 8, 0);
-    meleeModel.visible = false; // Começa escondida
+    meleeModel.visible = false; 
     // --- Fim Player weapons ---
 
+    // Carrega o template do zumbi
+    loadZombieTemplate();
 
     // pointer lock interactions and audio resume
     document.addEventListener('click', (ev) => {
@@ -427,9 +469,8 @@
   }
 
   function checkMobile() {
-    // const isMobile = /Mobi|Android/i.test(navigator.userAgent);
     if (isTouchDevice) {
-      // mobileFire.style.display = 'block'; // Este é o botão antigo, o novo já é controlado por CSS
+      // mobileFire.style.display = 'block'; // Este é o botão antigo
     }
   }
 
@@ -522,29 +563,40 @@
     const x = Math.cos(angle)*r + (Math.random()-0.5)*10;
     const z = Math.sin(angle)*r + (Math.random()-0.5)*10;
     
-    let bodyMat;
-    // --- Lógica de Skin de Zumbi ---
-    if (URLS_SKINS_ZUMBIS.length > 0) {
-        // Pega uma URL aleatória da sua lista
-        const skinUrl = URLS_SKINS_ZUMBIS[Math.floor(Math.random() * URLS_SKINS_ZUMBIS.length)];
-        const skinTexture = textureLoader.load(skinUrl);
-        bodyMat = new THREE.MeshStandardMaterial({ map: skinTexture, roughness: 0.9, metalness: 0.0 });
-    } else {
-        // Fallback: Usa a skin procedural do canvas
-        const skinTexture = window.__Z_SKIN_POOL[Math.floor(Math.random()*window.__Z_SKIN_POOL.length)];
-        bodyMat = new THREE.MeshStandardMaterial({map: skinTexture, roughness:0.9, metalness:0.0});
-    }
-    // --- Fim da Lógica de Skin ---
+    let group;
 
-    const legsMat = new THREE.MeshStandardMaterial({color:0x1d1d1d, roughness:0.95});
-    const group = new THREE.Group();
-    const legs = new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.45,0.7,8), legsMat);
-    legs.position.y = 0.35;
-    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.45,0.9,8), bodyMat);
-    torso.position.y = 1.0; torso.name = 'body';
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 8), bodyMat);
-    head.position.y = 1.6;
-    group.add(legs, torso, head);
+    // --- Lógica de Modelo de Zumbi ---
+    if (zombieTemplate) {
+        group = zombieTemplate.clone();
+    } else {
+        // Fallback: Usa o zumbi procedural
+        let bodyMat;
+        if (NOMES_SKINS_ZUMBIS.length > 0) {
+            const skinUrl = NOMES_SKINS_ZUMBIS[Math.floor(Math.random() * NOMES_SKINS_ZUMBIS.length)];
+            const skinTexture = textureLoader.load(skinUrl, null, null, () => {
+                 console.error(`Falha ao carregar skin: ${skinUrl}. Usando procedural.`);
+                 const fallbackSkin = window.__Z_SKIN_POOL[Math.floor(Math.random()*window.__Z_SKIN_POOL.length)];
+                 torso.material = new THREE.MeshStandardMaterial({map: fallbackSkin, roughness:0.9, metalness:0.0});
+                 head.material = new THREE.MeshStandardMaterial({map: fallbackSkin, roughness:0.9, metalness:0.0});
+            });
+            bodyMat = new THREE.MeshStandardMaterial({ map: skinTexture, roughness: 0.9, metalness: 0.0 });
+        } else {
+            const skinTexture = window.__Z_SKIN_POOL[Math.floor(Math.random()*window.__Z_SKIN_POOL.length)];
+            bodyMat = new THREE.MeshStandardMaterial({map: skinTexture, roughness:0.9, metalness:0.0});
+        }
+        
+        const legsMat = new THREE.MeshStandardMaterial({color:0x1d1d1d, roughness:0.95});
+        group = new THREE.Group();
+        const legs = new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.45,0.7,8), legsMat);
+        legs.position.y = 0.35;
+        const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.45,0.9,8), bodyMat);
+        torso.position.y = 1.0; torso.name = 'body';
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 8), bodyMat);
+        head.position.y = 1.6;
+        group.add(legs, torso, head);
+    }
+    // --- Fim da Lógica de Modelo ---
+
     group.position.set(x,0,z);
     
     const typeRoll = Math.random();
@@ -585,7 +637,12 @@
       obj.position.addScaledVector(dir, speed * dt);
       const desiredAngle = Math.atan2(pPos.x - obj.position.x, pPos.z - obj.position.z);
       obj.rotation.y += (desiredAngle - obj.rotation.y) * 0.08;
-      obj.position.y = Math.abs(Math.sin(performance.now()/300 + (obj.userData._offset||0))*0.04);
+      
+      // Animação de balanço apenas se NÃO for um modelo FBX (que teria sua própria animação)
+      if (!zombieTemplate) {
+          obj.position.y = Math.abs(Math.sin(performance.now()/300 + (obj.userData._offset||0))*0.04);
+      }
+      
       if (dist < 1.4 && gameActive) {
         if (!obj.userData._lastHit || Date.now() - obj.userData._lastHit > 1000) {
           obj.userData._lastHit = Date.now();
@@ -603,7 +660,8 @@
   function handleCollisions() {}
 
   function onMouseDown(e) {
-    if (!gameActive || !controls.isLocked) return;
+    // SÓ atira no PC se a mira estiver travada
+    if (!gameActive || (e.button === 0 && !isTouchDevice && !controls.isLocked)) return;
     if (e.button === 0) shoot();
   }
 
@@ -636,7 +694,7 @@
     const velocityX = direction.x * speed * dt;
     const velocityZ = direction.z * speed * dt;
     
-    // PC usa translateX/Z
+    // PC usa translateX/Z (relativo à câmera)
     if (!isTouchDevice) {
         controls.getObject().translateX(velocityX);
         controls.getObject().translateZ(velocityZ);
@@ -664,8 +722,9 @@
       controls.getObject().position.y = 1.6;
       canJump = true;
     }
-    if (keys['Space'] && canJump) {
+    if ((keys['Space'] || keys['MobileJump']) && canJump) { // 'MobileJump' é uma tecla custom
       velocity.y = 5; canJump = false;
+      keys['MobileJump'] = false; // Reseta o pulo mobile
     }
   }
 
@@ -700,8 +759,12 @@
       if (hits.length) {
         const hit = hits[0];
         let parent = hit.object.parent;
-        const zid = Object.keys(zombieObjects).find(k=>zombieObjects[k]===parent);
-        if (zid) {
+        // Precisamos encontrar o objeto 'group' raiz do zumbi
+        while (parent && !parent.userData.id) {
+            parent = parent.parent;
+        }
+        if (parent && parent.userData.id) {
+          const zid = parent.userData.id;
           damageZombie(zid, 35);
           flashCrosshair();
         }
@@ -1007,6 +1070,53 @@
     group.add(blade, guard, handle);
     return group;
   }
+  
+  // --- NOVAS FUNÇÕES PARA CARREGAR MODELOS ---
+  function loadGunModel() {
+      if (!NOME_ARQUIVO_ARMA_MTL || !NOME_ARQUIVO_ARMA_OBJ) return;
+      
+      mtlLoader.load(NOME_ARQUIVO_ARMA_MTL, (materials) => {
+          materials.preload();
+          objLoader.setMaterials(materials);
+          objLoader.load(NOME_ARQUIVO_ARMA_OBJ, (object) => {
+              console.log("Arma customizada carregada!", object);
+              camera.remove(pistolModel); // Remove a pistola placeholder
+              
+              // Ajusta a escala e posição da nova arma
+              object.scale.set(0.1, 0.1, 0.1); // <-- Ajuste a escala aqui!
+              object.position.set(0.25, -0.3, -0.6); // <-- Ajuste a posição aqui!
+              object.rotation.y = Math.PI; // <-- Ajuste a rotação aqui!
+              
+              pistolModel = object; // Substitui o placeholder
+              camera.add(pistolModel);
+              switchWeapon(); // Chama para garantir a visibilidade correta
+              switchWeapon();
+          }, null, () => {
+              console.error(`Falha ao carregar OBJ: ${NOME_ARQUIVO_ARMA_OBJ}`);
+          });
+      }, null, () => {
+           console.error(`Falha ao carregar MTL: ${NOME_ARQUIVO_ARMA_MTL}`);
+      });
+  }
+  
+  function loadZombieTemplate() {
+      if (!NOME_ARQUIVO_ZUMBI_FBX) return;
+      
+      fbxLoader.load(NOME_ARQUIVO_ZUMBI_FBX, (object) => {
+          console.log("Modelo de zumbi FBX carregado!", object);
+          // Ajusta escala e sombras
+          object.scale.set(0.01, 0.01, 0.01); // <-- Modelos FBX geralmente são grandes
+          object.traverse((child) => {
+              if (child.isMesh) {
+                  child.castShadow = true;
+                  child.receiveShadow = true;
+              }
+          });
+          zombieTemplate = object; // Salva o modelo para clonar
+      }, null, () => {
+          console.error(`Falha ao carregar FBX: ${NOME_ARQUIVO_ZUMBI_FBX}`);
+      });
+  }
 
   // download helper (I can create and upload ZIP if you re-authorize)
   document.getElementById('download').addEventListener('click', () => {
@@ -1025,7 +1135,7 @@
       right: 'KeyD',
       melee: 'KeyQ', // Mapeado para 'Q' (switchWeapon)
       weapon1: 'KeyE', // Mapeado para 'E' (interact)
-      weapon2: 'Space', // Mapeado para 'Space' (pulo)
+      weapon2: 'MobileJump', // Mapeado para 'MobileJump' (pulo customizado)
     };
 
     const pressedKeys = new Set();
@@ -1098,6 +1208,7 @@
 
     function onJoyMove(e) {
       if (activeTouchId === null) return;
+      e.preventDefault(); // Adicionado para evitar scroll da página
       const touches = e.changedTouches || [e];
       for (let i = 0; i < touches.length; i++) {
         const t = touches[i];
@@ -1169,6 +1280,7 @@
 
     // Mira (Aim)
     gameCanvas.addEventListener('touchstart', (e) => {
+        if (!gameActive) return; // Não mexe a câmera se o jogo não começou
         if (aimTouchIdentifier === null) {
             const touch = Array.from(e.changedTouches).find(t => !t.target.closest('#mobile-controls'));
             if (touch) {
@@ -1180,7 +1292,7 @@
     }, { passive: false });
     
     gameCanvas.addEventListener('touchmove', (e) => {
-        if (aimTouchIdentifier === null) return;
+        if (aimTouchIdentifier === null || !gameActive) return;
         e.preventDefault();
         let touch;
         for (let i = 0; i < e.changedTouches.length; i++) {
@@ -1197,7 +1309,6 @@
         lastAimY = touch.clientY;
         
         // --- LÓGICA DE MIRA REINTEGRADA ---
-        // Gira a câmera manualmente, já que o PointerLock não está ativo
         euler.setFromQuaternion(camera.quaternion);
         euler.y -= deltaX * 0.004; // Rotação Esquerda/Direita
         euler.x -= deltaY * 0.004; // Rotação Cima/Baixo
@@ -1208,6 +1319,7 @@
     }, { passive: false });
 
     gameCanvas.addEventListener('touchend', (e) => {
+        if (!gameActive) return;
         for (const touch of e.changedTouches) {
             if (touch.identifier === aimTouchIdentifier) {
                 aimTouchIdentifier = null;
@@ -1220,13 +1332,12 @@
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener('touchstart', function (ev) { ev.preventDefault(); onTouchStart(); }, {passive:false});
-      // Removido 'mousedown' para evitar clique duplo em mobile-web
       el.addEventListener('touchend', function (ev) { ev.preventDefault(); onTouchEnd(); }, {passive:false});
-      // Removido 'mouseup'
     }
 
     makeButton('mc-fire', 
         () => {
+            if (!gameActive) return;
             try {
                 // Simula o clique do mouse que a função shoot() espera
                 const ev = new MouseEvent('mousedown', { bubbles: true, clientX: 1, clientY: 1, button: 0 });
@@ -1234,6 +1345,7 @@
             } catch(e) {}
         }, 
         () => {
+             if (!gameActive) return;
              try {
                 const ev = new MouseEvent('mouseup', { bubbles: true, clientX: 1, clientY: 1, button: 0 });
                 gameCanvas.dispatchEvent(ev);
@@ -1243,7 +1355,8 @@
 
     makeButton('mc-melee', ()=>{ pressAndReleaseKey(KEYMAP.weapon1); }, ()=>{}); // Interagir (E)
     makeButton('mc-w1', ()=>{ pressAndReleaseKey(KEYMAP.melee); }, ()=>{}); // Trocar Arma (Q)
-    makeButton('mc-w2', ()=>{ pressKeyOnce(KEYMAP.weapon2); }, ()=>{ releaseKeyOnce(KEYMAP.weapon2); }); // Pulo (Space)
+    // CORREÇÃO: Mapeado para a tecla custom 'MobileJump'
+    makeButton('mc-w2', ()=>{ pressKeyOnce('MobileJump'); }, ()=>{ releaseKeyOnce('MobileJump'); }); // Pulo
 
 
     // --- Dados das Armas (do JSON) ---
