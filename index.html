@@ -22,11 +22,63 @@
   #crosshair::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:2px;height:2px;background:var(--accent);box-shadow:0 0 8px var(--accent)}
   button.btn{background:var(--accent);color:white;padding:10px 14px;border-radius:8px;border:none;cursor:pointer}
   .small{font-size:13px;color:var(--muted)}
-  #mobile-controls{position:fixed;left:0;right:0;bottom:0;height:160px;display:none;z-index:29;pointer-events:none}
   .hidden{display:none!important}
   #hit-flash{position:fixed;inset:0;background:rgba(255,0,0,0.06);z-index:50;pointer-events:none;opacity:0;transition:opacity 160ms}
-  #mobile-fire{position:fixed;right:18px;bottom:24px;background:rgba(0,0,0,0.45);padding:18px;border-radius:50%;z-index:60;color:white;display:none}
   #ammo { font-weight:700; margin-left:8px; }
+
+  /* --- Controles Mobile --- */
+  #mobile-controls {
+    position: fixed; bottom: 0; left: 0; width: 100%; height: 180px; z-index: 29;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 20px; box-sizing: border-box; pointer-events: none;
+  }
+  .mobile-control-area {
+    width: 150px; height: 150px; position: relative; pointer-events: all;
+    display: flex; justify-content: center; align-items: center;
+  }
+  #joystick-base {
+    width: 120px; height: 120px; background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 50%; display: flex; justify-content: center; align-items: center;
+  }
+  #joystick-stick {
+    width: 60px; height: 60px; background-color: rgba(255, 255, 255, 0.4);
+    border-radius: 50%; position: absolute; transform: translate(0, 0);
+  }
+  .action-buttons {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    position: relative;
+    width: 150px; height: 150px;
+  }
+  #shoot-button, #interact-button, #switch-weapon-button, #jump-button {
+    width: 80px; height: 80px; background-color: rgba(255, 0, 0, 0.5);
+    border-radius: 50%; border: 2px solid rgba(255,255,255,0.5);
+    font-size: 24px; color: white;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #shoot-button {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+  }
+  #switch-weapon-button {
+    width: 60px; height: 60px; background-color: rgba(0, 150, 255, 0.5);
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
+  #jump-button {
+      width: 60px; height: 60px; background-color: rgba(0, 255, 150, 0.5);
+      position: absolute;
+      bottom: 90px;
+      right: 0px;
+  }
+  #interact-button {
+    background-color: rgba(255, 215, 0, 0.7);
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  /* --- Fim Controles Mobile --- */
 </style>
 
 <!-- Import map (keeps imports short and avoids bundler) -->
@@ -44,8 +96,8 @@
 <div id="game-container"></div>
 <div id="crosshair"></div>
 <div id="hit-flash"></div>
-<button id="mobile-fire">FIRE</button>
 
+<!-- HUD PC -->
 <div class="hud" id="left-hud">
   <div style="display:flex;gap:12px;align-items:center;">
     <div>
@@ -65,6 +117,7 @@
 
 <div class="center-hud hidden" id="powerup">DANO DUPLO ATIVO</div>
 
+<!-- Lobby Simplificado -->
 <div id="lobby" class="modal">
   <div class="card">
     <h1 style="font-size:32px;color:var(--accent);margin:0 0 8px 0">Zombie Survival 3D — Enhanced</h1>
@@ -89,6 +142,19 @@
   </div>
 </div>
 
+<!-- Controles Mobile HTML -->
+<div id="mobile-controls" class="hidden">
+    <div id="joystick-area" class="mobile-control-area">
+        <div id="joystick-base"><div id="joystick-stick"></div></div>
+    </div>
+    <div class="mobile-control-area action-buttons">
+         <button id="interact-button" class="hidden">✋</button>
+         <button id="jump-button">🔼</button>
+         <button id="shoot-button">🔫</button>
+         <button id="switch-weapon-button">🔄</button>
+    </div>
+</div>
+
 <script type="module">
   import * as THREE from "three";
   import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
@@ -110,10 +176,19 @@
   const finalScoreEl = document.getElementById('final-score');
   const reportEl = document.getElementById('report');
   const hitFlash = document.getElementById('hit-flash');
-  const mobileFire = document.getElementById('mobile-fire');
   const ammoEl = document.getElementById('ammo');
   const weaponNameEl = document.getElementById('weapon-name');
   const magCapEl = document.getElementById('mag-cap');
+  
+  // Mobile DOM
+  const mobileControls = document.getElementById('mobile-controls');
+  const joystickArea = document.getElementById('joystick-area');
+  const joystickStick = document.getElementById('joystick-stick');
+  const shootButton = document.getElementById('shoot-button');
+  const switchWeaponButton = document.getElementById('switch-weapon-button');
+  const jumpButton = document.getElementById('jump-button');
+  const interactButton = document.getElementById('interact-button');
+
 
   // three
   let scene, camera, renderer, clock, controls, pistolModel, skyMesh;
@@ -129,6 +204,8 @@
   let velocity = new THREE.Vector3();
   let canJump = true;
   const MAX_ZOMBIES = 45;
+  const isTouchDevice = 'ontouchstart' in window;
+
 
   init();
 
@@ -197,8 +274,9 @@
       } else if (audioCtx.state === 'suspended') {
         audioCtx.resume().catch(()=>{});
       }
-      if (!gameActive) return;
-      if (!controls.isLocked) controls.lock();
+      if (!gameActive && !isTouchDevice) { // Só trava no PC
+           controls.lock();
+      }
     });
 
     // input and UI
@@ -208,8 +286,6 @@
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     window.addEventListener('mousedown', onMouseDown);
-    mobileFire.addEventListener('touchstart', (e)=>{ e.preventDefault(); onMobileFire(); }, {passive:false});
-    mobileFire.addEventListener('mousedown', onMobileFire);
 
     // initial audio context creation allowed on init (kept lazy)
     try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ audioCtx = null; }
@@ -221,7 +297,10 @@
 
     animate();
     updateHUD();
-    checkMobile();
+    
+    if (isTouchDevice) {
+        setupMobileControls();
+    }
   }
 
   // create a nicer procedural sky texture and sphere
@@ -270,13 +349,6 @@
     }
   }
 
-  function checkMobile() {
-    const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-    if (isMobile) {
-      mobileFire.style.display = 'block';
-    }
-  }
-
   function startGame() {
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
     localPlayer.name = nameInput.value.trim() || 'Sobrevivente';
@@ -286,7 +358,11 @@
     localPlayer.weapon = 'pistol'; localPlayer.ammo = localPlayer.magCap = 12;
     scoreEl.textContent = '0'; healthBar.style.width = '100%';
     crosshair.style.display = 'block';
-    try { controls.lock(); } catch(e){}
+    if (!isTouchDevice) {
+        try { controls.lock(); } catch(e){}
+    } else {
+        mobileControls.classList.remove('hidden');
+    }
     lastSpawn = Date.now();
   }
 
@@ -417,29 +493,27 @@
   function handleCollisions() {}
 
   function onMouseDown(e) {
-    if (!gameActive) return;
+    if (!gameActive || isTouchDevice) return; // Só PC
     if (e.button === 0) shoot();
   }
 
-  function onMobileFire() {
-    if (!gameActive) return;
-    shoot();
-  }
-
   function onKeyDown(e) {
-    if (e.code === 'KeyQ') switchWeapon();
-    if (e.code === 'KeyE') interactChest();
-    if (e.code === 'KeyR') reload();
-    keys[e.code] = true;
+    const key = e.code;
+    if (key === 'KeyQ') switchWeapon();
+    if (key === 'KeyE') interactChest();
+    if (key === 'KeyR') reload();
+    keys[key] = true;
   }
   function onKeyUp(e) { keys[e.code] = false; }
 
   function applyMovement(dt) {
     const speedWalk = 6;
     const speedRun = 9;
+    
     // forward/back corrected: W moves forward (negative Z in Three)
-    const forward = (keys['KeyW'] ? -1 : 0) + (keys['KeyS'] ? 1 : 0);
-    const side = (keys['KeyA'] ? -1 : 0) + (keys['KeyD'] ? 1 : 0);
+    const forward = (keys['KeyS'] ? 1 : 0) - (keys['KeyW'] ? 1 : 0);
+    const side = (keys['KeyD'] ? 1 : 0) - (keys['KeyA'] ? 1 : 0);
+    
     const isRunning = keys['ShiftLeft'] || keys['ShiftRight'];
     const speed = isRunning ? speedRun : speedWalk;
 
@@ -450,9 +524,26 @@
     const velocityX = direction.x * speed * dt;
     const velocityZ = direction.z * speed * dt;
 
-    controls.getObject().translateX(velocityX);
-    controls.getObject().translateZ(velocityZ);
+    if(isTouchDevice) {
+        // Movimento Mobile (baseado na câmera)
+        const forwardVec = new THREE.Vector3();
+        const rightVec = new THREE.Vector3();
+        camera.getWorldDirection(forwardVec);
+        forwardVec.y = 0;
+        forwardVec.normalize();
+        rightVec.crossVectors(camera.up, forwardVec);
+        
+        const moveVector = new THREE.Vector3();
+        moveVector.addScaledVector(forwardVec, direction.z * speed * dt);
+        moveVector.addScaledVector(rightVec, direction.x * speed * dt);
+        controls.getObject().position.add(moveVector);
 
+    } else {
+        // Movimento PC (baseado nos controles)
+        controls.getObject().translateX(velocityX);
+        controls.getObject().translateZ(velocityZ);
+    }
+    
     // gravity
     velocity.y -= 9.8 * dt;
     controls.getObject().position.y += velocity.y * dt;
@@ -461,8 +552,9 @@
       controls.getObject().position.y = 1.6;
       canJump = true;
     }
-    if (keys['Space'] && canJump) {
+    if ((keys['Space'] || keys['MobileJump']) && canJump) {
       velocity.y = 5; canJump = false;
+      keys['MobileJump'] = false; // Reseta o pulo mobile
     }
   }
 
@@ -563,6 +655,7 @@
     gameActive = false;
     try { controls.unlock(); } catch(e){}
     crosshair.style.display = 'none';
+    mobileControls.classList.add('hidden');
     finalScoreEl.textContent = 'Pontuação final: ' + localPlayer.score;
     reportEl.textContent = `O sobrevivente ${localPlayer.name} eliminou ${Math.floor(localPlayer.score/100)} zumbis antes de cair.`;
     gameOverModal.classList.remove('hidden');
@@ -783,22 +876,114 @@
   document.getElementById('download').addEventListener('click', () => {
     alert('Se quiser o ZIP com este projeto, responda "gera o zip" ou autorize o commit com "commita".');
   });
+  
+  // --- Lógica Mobile Adicionada ---
+  function setupMobileControls() {
+    let joystickTouchIdentifier = null;
+    let aimTouchIdentifier = null;
+    let lastAimX = 0, lastAimY = 0;
+    const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+    const PI_2 = Math.PI / 2;
 
-  <!-- Mobile controls (adicione antes do fechamento </body>) -->
-<link rel="stylesheet" href="mobile-controls.css">
-<script id="mobile-weapons-data" type="application/json">
-<!-- cole aqui o conteúdo do mobile-weapons.json ou deixe vazio para carregar via fetch -->
+    // Joystick
+    joystickArea.addEventListener('touchstart', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        joystickTouchIdentifier = e.changedTouches[0].identifier;
+    }, { passive: false });
+
+    joystickArea.addEventListener('touchmove', (e) => {
+        if (joystickTouchIdentifier === null) return;
+        e.preventDefault(); e.stopPropagation();
+        
+        let touch;
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === joystickTouchIdentifier) {
+                touch = e.changedTouches[i];
+                break;
+            }
+        }
+        if (!touch) return;
+
+        const joyBaseRect = joystickArea.getBoundingClientRect();
+        const stickRadius = joyBaseRect.width / 2;
+        const x = touch.clientX - joyBaseRect.left - stickRadius;
+        const y = touch.clientY - joyBaseRect.top - stickRadius;
+        const dist = Math.min(stickRadius - 30, Math.hypot(x, y));
+        const angle = Math.atan2(y, x);
+        
+        joystickStick.style.transform = `translate(${dist * Math.cos(angle)}px, ${dist * Math.sin(angle)}px)`;
+        
+        const threshold = 0.2;
+        keys['KeyW'] = y / stickRadius < -threshold;
+        keys['KeyS'] = y / stickRadius > threshold;
+        keys['KeyA'] = x / stickRadius < -threshold;
+        keys['KeyD'] = x / stickRadius > threshold;
+    }, { passive: false });
+
+    joystickArea.addEventListener('touchend', (e) => {
+        e.stopPropagation();
+        joystickStick.style.transform = `translate(0px, 0px)`;
+        keys['KeyW']=keys['KeyA']=keys['KeyS']=keys['KeyD']=false;
+        joystickTouchIdentifier = null;
+    }, { passive: false });
+
+    // Botões de Ação
+    shootButton.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); shoot(); }, { passive: false });
+    interactButton.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); interactChest(); });
+    switchWeaponButton.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); switchWeapon(); });
+    jumpButton.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); keys['MobileJump'] = true; });
+
+    // Mira (Aim)
+    container.addEventListener('touchstart', (e) => {
+        if (aimTouchIdentifier === null) {
+            const touch = Array.from(e.changedTouches).find(t => t.target.closest('#game-container') && !t.target.closest('.mobile-control-area'));
+            if (touch) {
+                aimTouchIdentifier = touch.identifier;
+                lastAimX = touch.clientX;
+                lastAimY = touch.clientY;
+            }
+        }
+    }, { passive: false });
+
+    container.addEventListener('touchmove', (e) => {
+        if (aimTouchIdentifier === null) return;
+        e.preventDefault();
+        
+        let touch;
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === aimTouchIdentifier) {
+                touch = e.changedTouches[i];
+                break;
+            }
+        }
+        if (!touch) return;
+
+        const deltaX = touch.clientX - lastAimX;
+        const deltaY = touch.clientY - lastAimY;
+        lastAimX = touch.clientX;
+        lastAimY = touch.clientY;
+
+        euler.setFromQuaternion(camera.quaternion);
+        euler.y -= deltaX * 0.004;
+        euler.x -= deltaY * 0.004;
+        euler.x = Math.max(-PI_2, Math.min(PI_2, euler.x));
+        camera.quaternion.setFromEuler(euler);
+        
+    }, { passive: false });
+
+    container.addEventListener('touchend', (e) => {
+        for (const touch of e.changedTouches) {
+            if (touch.identifier === aimTouchIdentifier) {
+                aimTouchIdentifier = null;
+                break;
+            }
+        }
+    });
+  }
+
 </script>
-<script src="mobile-controls.js"></script>
-<script>
-  (function(){
-    try {
-      const el = document.getElementById('mobile-weapons-data');
-      if (el) {
-        window.mobileWeaponsData = JSON.parse(el.textContent || el.innerText || '{}');
-      }
-    } catch(e) { console.warn('mobile-controls: failed to parse mobile-weapons.json', e); }
-  })();
-</script>
+
 </body>
 </html>
+
+
