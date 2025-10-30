@@ -68,16 +68,11 @@
 <div id="lobby" class="modal">
   <div class="card">
     <h1 style="font-size:32px;color:var(--accent);margin:0 0 8px 0">Zombie Survival 3D — Enhanced</h1>
-    <p class="small">Modo híbrido: suporta <strong>offline</strong> (sem Firebase) e <strong>online</strong> com Firebase se você fornecer a configuração. Skins procedurais, luzes, som e gameplay finalizado.</p>
+    <p class="small">Digite seu nome para sobreviver. Skins procedurais, luzes, som e gameplay finalizado.</p>
     <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;">
       <input id="name" class="input" placeholder="Seu nome" style="flex:1;padding:10px;border-radius:8px;background:#111;border:1px solid rgba(255,255,255,0.03);color:white" />
-      <select id="mode" style="padding:10px;border-radius:8px;background:#111;border:1px solid rgba(255,255,255,0.03);color:white">
-        <option value="offline">Offline (local)</option>
-        <option value="online">Online (Firebase) — opcional</option>
-      </select>
       <button id="start" class="btn">Iniciar Jogo</button>
     </div>
-    <div style="margin-top:10px" class="small">Dica: se escolher <em>Online</em>, abra <code>index.html</code> e defina a variável <code>FIREBASE_CONFIG</code> com seu objeto de configuração (veja README).</div>
   </div>
 </div>
 
@@ -100,14 +95,14 @@
   import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
 
   // Optional Firebase hook (keep null by default)
-  const FIREBASE_CONFIG = null;
+  const FIREBASE_CONFIG = null; // Modo online desabilitado por padrão
 
   // DOM
   const container = document.getElementById('game-container');
   const lobby = document.getElementById('lobby');
   const startBtn = document.getElementById('start');
   const nameInput = document.getElementById('name');
-  const modeSelect = document.getElementById('mode');
+  // const modeSelect = document.getElementById('mode'); // Removido
   const crosshair = document.getElementById('crosshair');
   const gameOverModal = document.getElementById('game-over');
   const restartBtn = document.getElementById('restart');
@@ -198,6 +193,10 @@
 
     // pointer lock interactions
     document.addEventListener('click', (ev) => {
+      // Iniciar contexto de áudio no primeiro clique, se necessário
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
       if (!gameActive) return;
       if (!controls.isLocked) controls.lock();
     });
@@ -214,8 +213,10 @@
 
     // audio
     try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ audioCtx = null; }
-    // expose audioCtx so overlay can resume it
-    window.audioCtx = audioCtx;
+    
+    // Não expor mais o audioCtx globalmente, tratar no clique
+    // window.audioCtx = audioCtx; 
+    
     if (audioCtx) {
       gunBuffer = makeGunShotBuffer();
       hitBuffer = makeHitBuffer();
@@ -240,6 +241,11 @@
   }
 
   function startGame() {
+    // Tenta resumir o áudio aqui, caso o clique no documento não tenha funcionado
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  
     localPlayer.name = nameInput.value.trim() || 'Sobrevivente';
     lobby.classList.add('hidden');
     gameActive = true;
@@ -665,60 +671,7 @@
 </script>
 
 <!-- Start overlay + debug utilities: garante gesto do usuário para áudio/pointer lock -->
-<script>
-(function () {
-  function ensure() {
-    const lobby = document.getElementById('lobby');
-    const startBtn = document.getElementById('start');
-    if (!lobby || !startBtn) { setTimeout(ensure, 200); return; }
-    if (!document.getElementById('start-overlay')) {
-      const overlay = document.createElement('div');
-      overlay.id = 'start-overlay';
-      overlay.style = [
-        'position:fixed',
-        'inset:0',
-        'display:flex',
-        'align-items:center',
-        'justify-content:center',
-        'background:linear-gradient(180deg,rgba(0,0,0,0.6),rgba(0,0,0,0.75))',
-        'z-index:60',
-        'backdrop-filter: blur(2px)'
-      ].join(';');
-      const btn = document.createElement('button');
-      btn.textContent = 'Clique para Começar';
-      btn.style = 'padding:16px 22px;border-radius:10px;background:#ff3b3b;color:white;border:none;font-size:18px;cursor:pointer';
-      btn.id = 'start-overlay-btn';
-      overlay.appendChild(btn);
-      document.body.appendChild(overlay);
-
-      btn.addEventListener('click', async function () {
-        overlay.remove();
-        if (window.audioCtx && window.audioCtx.state === 'suspended') {
-          try { await window.audioCtx.resume(); } catch(e) { console.warn('audio resume failed', e); }
-        }
-        if (startBtn) startBtn.click();
-        try {
-          const canvas = document.querySelector('canvas');
-          if (canvas && canvas.requestPointerLock) {
-            canvas.requestPointerLock();
-          } else if (typeof document.body.requestPointerLock === 'function') {
-            document.body.requestPointerLock();
-          }
-        } catch(e){ console.warn('pointer lock request failed', e); }
-      });
-    }
-
-    window.__game_debug = {
-      clickStart: function(){ document.getElementById('start')?.click(); },
-      hideLobby: function(){ document.getElementById('lobby')?.classList.add('hidden'); },
-      showLobby: function(){ document.getElementById('lobby')?.classList.remove('hidden'); },
-      listEvents: function(elId){ try { console.log(getEventListeners(document.getElementById(elId))); } catch(e){ console.log('getEventListeners not supported in this browser'); } }
-    };
-    console.log('Start overlay and debug utilities installed. Use __game_debug.clickStart() to trigger start programmatically.');
-  }
-  ensure();
-})();
-</script>
+<!-- Removido o script de overlay que estava causando conflito -->
 
 </body>
 </html>
