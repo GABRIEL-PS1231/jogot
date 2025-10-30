@@ -203,6 +203,27 @@
   // Optional Firebase hook (keep null by default)
   const FIREBASE_CONFIG = null;
 
+  //
+  // ==================================================================================
+  // ===== ÁREA DE TEXTURAS E SKINS (SEU ESPAÇO PARA EDITAR) =====
+  // ==================================================================================
+  
+  // Para adicionar uma textura no chão, cole a URL aqui.
+  // Ex: 'https://cdn.ambientcg.com/asset-variants/Ground037/Ground037_2K_Color.jpg'
+  // Deixe `null` para usar a cor cinza padrão.
+  const URL_TEXTURA_CHAO = null;
+
+  // Para adicionar skins de zumbis da internet, cole as URLs aqui.
+  // O jogo vai escolher uma aleatoriamente para cada zumbi.
+  // Se o array ficar vazio, o jogo usará as skins procedurais (canvas).
+  // Ex: [ 'https://meusite.com/skin1.jpg', 'https://meusite.com/skin2.png' ]
+  const URLS_SKINS_ZUMBIS = [];
+
+  // ==================================================================================
+  // ===== FIM DA ÁREA DE TEXTURAS =====
+  // ==================================================================================
+  //
+
   // DOM
   const container = document.getElementById('game-container');
   const lobby = document.getElementById('lobby');
@@ -236,6 +257,8 @@
   let velocity = new THREE.Vector3();
   let canJump = true;
   const MAX_ZOMBIES = 45;
+  const isTouchDevice = 'ontouchstart' in window;
+  const textureLoader = new THREE.TextureLoader(); // Um loader para o jogo todo
 
   init();
 
@@ -267,7 +290,25 @@
     scene.add(dir);
 
     // ground
-    const groundMat = new THREE.MeshStandardMaterial({color:0x222222, roughness:0.7, metalness:0.05});
+    let groundMat;
+    if (URL_TEXTURA_CHAO) {
+        const groundTexture = textureLoader.load(
+            URL_TEXTURA_CHAO,
+            (texture) => {
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                texture.repeat.set(100, 100); 
+                texture.needsUpdate = true;
+            }
+        );
+        groundMat = new THREE.MeshStandardMaterial({
+            map: groundTexture, 
+            roughness: 0.8,
+            metalness: 0.1
+        });
+    } else {
+        groundMat = new THREE.MeshStandardMaterial({color:0x222222, roughness:0.7, metalness:0.05});
+    }
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000,2000), groundMat);
     ground.rotation.x = -Math.PI/2;
     ground.receiveShadow = true;
@@ -313,7 +354,7 @@
         audioCtx.resume().catch(()=>{});
       }
       if (!gameActive) return;
-      if (!controls.isLocked) controls.lock();
+      if (!isTouchDevice && !controls.isLocked) controls.lock();
     });
 
     // input and UI
@@ -386,9 +427,9 @@
   }
 
   function checkMobile() {
-    const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-    if (isMobile) {
-      mobileFire.style.display = 'block';
+    // const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+    if (isTouchDevice) {
+      // mobileFire.style.display = 'block'; // Este é o botão antigo, o novo já é controlado por CSS
     }
   }
 
@@ -396,7 +437,6 @@
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
     
     // --- Lógica de Tela Cheia ---
-    // Pede tela cheia ao iniciar o jogo (requer clique do usuário, o que o botão "start" faz)
     if (document.documentElement.requestFullscreen) {
         document.documentElement.requestFullscreen().catch((err) => {
             console.warn(`Erro ao tentar entrar em tela cheia: ${err.message}`);
@@ -411,7 +451,11 @@
     localPlayer.weapon = 'pistol'; localPlayer.ammo = localPlayer.magCap = 12;
     scoreEl.textContent = '0'; healthBar.style.width = '100%';
     crosshair.style.display = 'block';
-    try { controls.lock(); } catch(e){}
+    
+    if (!isTouchDevice) {
+        try { controls.lock(); } catch(e){}
+    }
+    
     lastSpawn = Date.now();
   }
 
@@ -477,8 +521,21 @@
     const r = 60 + Math.random()*120;
     const x = Math.cos(angle)*r + (Math.random()-0.5)*10;
     const z = Math.sin(angle)*r + (Math.random()-0.5)*10;
-    const skinTexture = window.__Z_SKIN_POOL[Math.floor(Math.random()*window.__Z_SKIN_POOL.length)];
-    const bodyMat = new THREE.MeshStandardMaterial({map: skinTexture, roughness:0.9, metalness:0.0});
+    
+    let bodyMat;
+    // --- Lógica de Skin de Zumbi ---
+    if (URLS_SKINS_ZUMBIS.length > 0) {
+        // Pega uma URL aleatória da sua lista
+        const skinUrl = URLS_SKINS_ZUMBIS[Math.floor(Math.random() * URLS_SKINS_ZUMBIS.length)];
+        const skinTexture = textureLoader.load(skinUrl);
+        bodyMat = new THREE.MeshStandardMaterial({ map: skinTexture, roughness: 0.9, metalness: 0.0 });
+    } else {
+        // Fallback: Usa a skin procedural do canvas
+        const skinTexture = window.__Z_SKIN_POOL[Math.floor(Math.random()*window.__Z_SKIN_POOL.length)];
+        bodyMat = new THREE.MeshStandardMaterial({map: skinTexture, roughness:0.9, metalness:0.0});
+    }
+    // --- Fim da Lógica de Skin ---
+
     const legsMat = new THREE.MeshStandardMaterial({color:0x1d1d1d, roughness:0.95});
     const group = new THREE.Group();
     const legs = new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.45,0.7,8), legsMat);
@@ -489,7 +546,7 @@
     head.position.y = 1.6;
     group.add(legs, torso, head);
     group.position.set(x,0,z);
-    // type-based variation (walker/runner/brute)
+    
     const typeRoll = Math.random();
     let baseSpeed = 0.6, health=90, damage=8;
     if (typeRoll < 0.6) { baseSpeed = 0.6 + Math.random()*0.25; health = 80 + Math.random()*40; damage = 8 + Math.floor(Math.random()*8); }
@@ -546,7 +603,7 @@
   function handleCollisions() {}
 
   function onMouseDown(e) {
-    if (!gameActive) return;
+    if (!gameActive || !controls.isLocked) return;
     if (e.button === 0) shoot();
   }
 
@@ -578,9 +635,26 @@
 
     const velocityX = direction.x * speed * dt;
     const velocityZ = direction.z * speed * dt;
-
-    controls.getObject().translateX(velocityX);
-    controls.getObject().translateZ(velocityZ);
+    
+    // PC usa translateX/Z
+    if (!isTouchDevice) {
+        controls.getObject().translateX(velocityX);
+        controls.getObject().translateZ(velocityZ);
+    } else {
+        // Mobile usa vetores globais (para o joystick funcionar com a câmera)
+        const forwardVec = new THREE.Vector3();
+        const rightVec = new THREE.Vector3();
+        camera.getWorldDirection(forwardVec);
+        forwardVec.y = 0;
+        forwardVec.normalize();
+        rightVec.crossVectors(camera.up, forwardVec);
+        
+        const moveVector = new THREE.Vector3();
+        moveVector.addScaledVector(forwardVec, velocityZ); // W/S
+        moveVector.addScaledVector(rightVec, velocityX); // A/D
+        
+        controls.getObject().position.add(moveVector);
+    }
 
     // gravity
     velocity.y -= 9.8 * dt;
@@ -603,8 +677,7 @@
 
     // if pistol and no ammo -> auto-melee
     if (localPlayer.weapon === 'pistol' && localPlayer.ammo <= 0) {
-      localPlayer.weapon = 'melee';
-      updateHUD();
+      switchWeapon(); // Troca para melee
       meleeAttack();
       return;
     }
@@ -640,11 +713,9 @@
   }
 
   function meleeAttack() {
-    // Animação de "swing" da Katana
     if (meleeModel) {
         meleeModel.rotation.z = -Math.PI / 2; // Gira rápido
     }
-
     const pPos = new THREE.Vector3();
     controls.getObject().getWorldPosition(pPos);
     let nearest = null; let nd = Infinity;
@@ -710,7 +781,7 @@
   }
   function updateHUD() {
     ammoEl.textContent = localPlayer.ammo;
-    weaponNameEl.textContent = localPlayer.weapon === 'pistol' ? 'Pistola' : 'Katana'; // Atualizado
+    weaponNameEl.textContent = localPlayer.weapon === 'pistol' ? 'Pistola' : 'Katana';
     magCapEl.textContent = localPlayer.magCap;
   }
 
@@ -1093,6 +1164,8 @@
     const gameCanvas = document.querySelector('canvas') || document.getElementById('game-container') || document.body;
     let aimTouchIdentifier = null;
     let lastAimX = 0, lastAimY = 0;
+    const euler = new THREE.Euler(0, 0, 0, 'YXZ'); // Re-adicionado para a mira
+    const PI_2 = Math.PI / 2; // Re-adicionado para a mira
 
     // Mira (Aim)
     gameCanvas.addEventListener('touchstart', (e) => {
@@ -1123,16 +1196,14 @@
         lastAimX = touch.clientX;
         lastAimY = touch.clientY;
         
-        try {
-            const ev = new MouseEvent('mousemove', {
-                clientX: touch.clientX,
-                clientY: touch.clientY,
-                movementX: deltaX,
-                movementY: deltaY,
-                bubbles: true
-            });
-            gameCanvas.dispatchEvent(ev);
-        } catch(err) { console.warn(err); }
+        // --- LÓGICA DE MIRA REINTEGRADA ---
+        // Gira a câmera manualmente, já que o PointerLock não está ativo
+        euler.setFromQuaternion(camera.quaternion);
+        euler.y -= deltaX * 0.004; // Rotação Esquerda/Direita
+        euler.x -= deltaY * 0.004; // Rotação Cima/Baixo
+        euler.x = Math.max(-PI_2, Math.min(PI_2, euler.x)); // Limita a rotação vertical
+        camera.quaternion.setFromEuler(euler);
+        // --- FIM DA LÓGICA DE MIRA ---
         
     }, { passive: false });
 
@@ -1149,21 +1220,22 @@
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener('touchstart', function (ev) { ev.preventDefault(); onTouchStart(); }, {passive:false});
-      el.addEventListener('mousedown', function (ev) { ev.preventDefault(); onTouchStart(); });
+      // Removido 'mousedown' para evitar clique duplo em mobile-web
       el.addEventListener('touchend', function (ev) { ev.preventDefault(); onTouchEnd(); }, {passive:false});
-      el.addEventListener('mouseup', function (ev) { ev.preventDefault(); onTouchEnd(); });
+      // Removido 'mouseup'
     }
 
     makeButton('mc-fire', 
         () => {
             try {
-                const ev = new MouseEvent('mousedown', { bubbles: true, clientX: 1, clientY: 1 });
+                // Simula o clique do mouse que a função shoot() espera
+                const ev = new MouseEvent('mousedown', { bubbles: true, clientX: 1, clientY: 1, button: 0 });
                 gameCanvas.dispatchEvent(ev);
             } catch(e) {}
         }, 
         () => {
              try {
-                const ev = new MouseEvent('mouseup', { bubbles: true, clientX: 1, clientY: 1 });
+                const ev = new MouseEvent('mouseup', { bubbles: true, clientX: 1, clientY: 1, button: 0 });
                 gameCanvas.dispatchEvent(ev);
             } catch(e) {}
         }
