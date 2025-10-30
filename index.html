@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <title>Jogo Zumbi - Versão Corrigida</title>
+  <title>Jogo Zumbi - Versão Estável</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     html,body{height:100%;margin:0;background:#070607;overflow:hidden;font-family:Inter,Arial}
@@ -13,13 +13,15 @@
     #fireBtn{position:absolute;right:18px;bottom:70px;width:86px;height:86px;border-radius:50%;z-index:30;background:rgba(160,20,20,0.18);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800}
     #joystick{position:absolute;left:12px;bottom:80px;width:120px;height:120px;border-radius:50%;z-index:30;touch-action:none}
     #loading{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:50;color:#fff;background:rgba(0,0,0,0.5);padding:18px;border-radius:10px;font-size:16px}
-    #errors{position:absolute;left:10px;top:10px;z-index:60;color:#ff7766;max-width:40%;font-size:14px;text-shadow:1px 1px #000;white-space:pre-wrap}
-    @media(max-width:720px){ #errors{max-width:80%} }
+    #errors{position:absolute;left:10px;top:10px;z-index:60;color:#ff7766;max-width:40%; font-size: 14px; text-shadow: 1px 1px #000; pointer-events: none;}
+    @media(max-width:720px){
+      #errors{max-width:80%}
+    }
   </style>
 </head>
 <body>
   <div id="app"></div>
-  <div id="loading">Carregando recursos... <span id="loadPerc">0%</span></div>
+  <div id="loading">Carregando recursos... <span id="loadPerc">0/0</span></div>
   <div id="errors"></div>
 
   <div id="ui">
@@ -34,7 +36,7 @@
   <div id="joystick" aria-hidden="true"></div>
   <div id="fireBtn" aria-hidden="true">ATIRAR</div>
 
-  <!-- libs -->
+  <!-- three.js e loaders -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/loaders/FBXLoader.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/loaders/OBJLoader.js"></script>
@@ -42,49 +44,65 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/loaders/ColladaLoader.js"></script>
 
 <script>
-/* ========= CONFIG - nomes exatos que você informou ========= */
+/* =========================
+   CONFIG (usar exatamente estes nomes)
+   ========================= */
 const FILES = {
   gunOBJ: 'Gun.obj',
   gunMTL: 'Gun.mtl',
   gunDAE: 'Gun.dae',
   gunPNG: 'Gun.png',
-  ground: 'Sample.png',
+  ground: 'Preview.png', // <-- Certifique-se que 'Preview.png' está no GitHub
+  fbxModel: 'characterMedium.fbx', // O MODELO VISUAL
   fbxIdle: 'idle.fbx',
   fbxRun: 'run.fbx',
   fbxJump: 'jump.fbx'
 };
-/* ========================================================== */
+/* ========================= */
 
 const app = document.getElementById('app');
 const loadingEl = document.getElementById('loading');
 const loadPerc = document.getElementById('loadPerc');
 const errorsEl = document.getElementById('errors');
 
-// Loading manager robusto
+// --- NOVO GERENCIADOR DE LOADING ---
 const manager = new THREE.LoadingManager();
-manager.onStart = (url, loaded, total) => { loadPerc.innerText = '0%'; };
-manager.onProgress = (url, loaded, total) => {
-  const perc = Math.round((loaded/total)*100);
-  loadPerc.innerText = perc + '%';
+manager.onStart = function ( url, itemsLoaded, itemsTotal ) {
+	console.log( 'Iniciando carregamento...' );
+    loadPerc.innerText = `${itemsLoaded}/${itemsTotal}`;
 };
-manager.onLoad = () => { setTimeout(()=> loadingEl.style.display='none', 300); };
-manager.onError = (url) => { logError('Erro ao carregar: ' + url); };
+manager.onLoad = function ( ) {
+	console.log( 'Carregamento completo!');
+    setTimeout(()=> {
+      loadingEl.style.display = 'none';
+    }, 400);
+};
+manager.onProgress = function ( url, itemsLoaded, itemsTotal ) {
+	console.log( 'Carregando arquivo: ' + url + ' (' + itemsLoaded + '/' + itemsTotal + ')' );
+    loadPerc.innerText = `${itemsLoaded}/${itemsTotal}`;
+};
+manager.onError = function ( url ) {
+	console.error( 'Erro ao carregar ' + url );
+    logError('ERRO: Não foi possível carregar ' + url);
+};
+// --- FIM DO GERENCIADOR ---
 
-// THREE loaders com manager
-const fbxLoader = new THREE.FBXLoader(manager);
-const objLoader = new THREE.OBJLoader(manager);
-const mtlLoader = new THREE.MTLLoader(manager);
-const daeLoader = new THREE.ColladaLoader(manager);
-const texLoader = new THREE.TextureLoader(manager);
 
-// scène globals
+// THREE globals
 let scene, camera, renderer, clock;
-let activeMixers = [];
+let mixers = [], activeMixers = [];
+// Passa o manager para os loaders
+let fbxLoader = new THREE.FBXLoader(manager);
+let objLoader = new THREE.OBJLoader(manager);
+let mtlLoader = new THREE.MTLLoader(manager);
+let daeLoader = new THREE.ColladaLoader(manager);
+let texLoader = new THREE.TextureLoader(manager);
+
 let gun = null;
-let zombieTemplate = { mesh: null, animations: {} }; // sempre definido
-const zombies = {}; let zcount = 0;
-const player = { pos: new THREE.Vector3(0,1.2,4), speed: 4.5, onGround: true };
-const keys = { w:false,a:false,s:false,d:false };
+let zombieTemplate = null;
+const zombies = {};
+let zombieCounter = 0;
+const player = { pos: new THREE.Vector3(0,1.2,4), vel: new THREE.Vector3(), speed: 4.5, onGround:true };
 
 init();
 animate();
@@ -94,8 +112,9 @@ function logError(msg){
   errorsEl.innerText += msg + '\n';
 }
 
-/* ========== INIT ========== */
+// init scene
 function init(){
+  // checa WebGL
   if (!THREE.WEBGL.isWebGLAvailable()){
     document.body.innerHTML = '<div style="color:#fff;padding:30px">Seu navegador não suporta WebGL.</div>';
     return;
@@ -106,9 +125,9 @@ function init(){
   scene.fog = new THREE.FogExp2(0x07060a, 0.0035);
 
   camera = new THREE.PerspectiveCamera(62, window.innerWidth/window.innerHeight, 0.1, 1000);
-  camera.position.set(0,1.6,6);
+  camera.position.set(0, 1.6, 6);
 
-  renderer = new THREE.WebGLRenderer({ antialias:true });
+  renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -117,78 +136,119 @@ function init(){
   clock = new THREE.Clock();
 
   // lights
-  const hemi = new THREE.HemisphereLight(0x99aaff, 0x120a10, 0.55); scene.add(hemi);
-  const dir = new THREE.DirectionalLight(0xfff3d8, 1.0); dir.position.set(8,12,6); dir.castShadow = true;
-  dir.shadow.mapSize.set(2048,2048); dir.shadow.camera.left=-20;dir.shadow.camera.right=20;dir.shadow.camera.top=20;dir.shadow.camera.bottom=-20;
-  scene.add(dir);
-  const rim = new THREE.DirectionalLight(0x88b4ff, 0.25); rim.position.set(-10,8,-6); scene.add(rim);
-  scene.add(new THREE.PointLight(0x88aaff,0.08,30)); scene.add(new THREE.PointLight(0xffddcc,0.06,30));
+  const hemi = new THREE.HemisphereLight(0x99aaff, 0x120a10, 0.55);
+  scene.add(hemi);
 
-  // ground (tenta carregar Sample.png)
+  const dir = new THREE.DirectionalLight(0xfff3d8, 1.0);
+  dir.position.set(8, 12, 6);
+  dir.castShadow = true;
+  dir.shadow.mapSize.set(2048,2048);
+  dir.shadow.camera.left = -20; dir.shadow.camera.right = 20;
+  dir.shadow.camera.top = 20; dir.shadow.camera.bottom = -20;
+  dir.shadow.camera.near = 0.5; dir.shadow.camera.far = 60;
+  scene.add(dir);
+
+  const rim = new THREE.DirectionalLight(0x88b4ff, 0.25);
+  rim.position.set(-10,8,-6);
+  scene.add(rim);
+
+  // ground (tenta carregar textura; se falhar, usa cor)
   texLoader.load(FILES.ground, tex => {
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(60,60);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(60,60);
     const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1 });
     const geo = new THREE.PlaneGeometry(400,400);
-    const floor = new THREE.Mesh(geo, mat); floor.rotation.x = -Math.PI/2; floor.receiveShadow=true;
+    const floor = new THREE.Mesh(geo, mat);
+    floor.rotation.x = -Math.PI/2;
+    floor.receiveShadow = true;
     scene.add(floor);
   }, undefined, err => {
-    logError(`Falha ao carregar ${FILES.ground} — usando floor fallback.`);
+    // fallback floor
     const geo = new THREE.PlaneGeometry(400,400);
-    const floor = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({color:0x111114}));
-    floor.rotation.x = -Math.PI/2; floor.receiveShadow=true; scene.add(floor);
+    const mat = new THREE.MeshStandardMaterial({ color:0x111114 });
+    const floor = new THREE.Mesh(geo, mat);
+    floor.rotation.x = -Math.PI/2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+    logError(`Falha ao carregar ${FILES.ground} (floor). Usando fallback.`);
   });
 
-  // sky/backdrop
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(300,32,32), new THREE.MeshBasicMaterial({color:0x050406, side:THREE.BackSide}));
+  // sky gradient (simples)
+  const skyGeo = new THREE.SphereGeometry(300, 32, 32);
+  const skyMat = new THREE.MeshBasicMaterial({ color: 0x050406, side: THREE.BackSide, fog:false });
+  const sky = new THREE.Mesh(skyGeo, skyMat);
   scene.add(sky);
 
-  // carrega assets (gun + zumbis)
-  loadGun();            // MTL/OBJ -> OBJ -> DAE fallback
-  loadZombieAssets();   // usa idle.fbx/run.fbx/jump.fbx
+  // luzes de preenchimento local para evitar sombras excessivas
+  const fill1 = new THREE.PointLight(0x88aaff, 0.12, 40); fill1.position.set(0,4,6); scene.add(fill1);
+  const fill2 = new THREE.PointLight(0xffcccc, 0.09, 40); fill2.position.set(-6,2,-6); scene.add(fill2);
 
-  // spawn iniciais (sempre colocamos placeholders se nada carregou)
-  setTimeout(()=> { spawnZombie(); spawnZombie(); }, 700);
+  // load gun (três tentativas: MTL+OBJ, OBJ, DAE)
+  loadGun();
 
-  // UI
+  // load zombie fbx animations/template
+  loadZombieTemplate();
+
+  // spawn alguns zumbis pra ver
+  setTimeout(()=>{ spawnZombie(); spawnZombie(); }, 800);
+
+  // UI events
   document.getElementById('btnSpawn').addEventListener('click', ()=> spawnZombie());
   document.getElementById('btnShadows').addEventListener('click', toggleShadows);
   document.getElementById('btnDebug').addEventListener('click', toggleDebug);
-  document.getElementById('fireBtn').addEventListener('pointerdown', spawnMuzzleFlash);
+  document.getElementById('fireBtn').addEventListener('pointerdown', ()=> spawnMuzzleFlash());
 
-  setupJoystick();
+  setupJoystick(); // mobile simple
+
   window.addEventListener('resize', onResize);
-  window.addEventListener('keydown', onKeyDown); window.addEventListener('keyup', onKeyUp);
 
-  // safety: garante load desapareça se algum loader travar
-  setTimeout(()=> { loadingEl.style.display='none'; }, 6000);
+  // fps update
+  setInterval(()=> {
+    const fps = Math.round(1/Math.max(0.0001, clock.getDelta()));
+    const el = document.getElementById('fps');
+    if (el) el.innerText = `FPS: ${fps}`;
+  }, 1000);
 }
 
-/* ========== GUN LOADER ========== */
+/* ======= GUN LOADING ======= */
 function loadGun(){
-  // tenta MTL+OBJ
+  // 1) tenta MTL+OBJ
   mtlLoader.load(FILES.gunMTL, materials => {
     materials.preload();
     objLoader.setMaterials(materials);
-    objLoader.load(FILES.gunOBJ, obj => finalizeGun(obj), undefined, err => {
+    objLoader.load(FILES.gunOBJ, obj => {
+      finalizeGun(obj);
+    }, undefined, err => {
       console.warn('OBJ com MTL falhou:', err);
-      // tenta só OBJ
-      objLoader.load(FILES.gunOBJ, obj2 => finalizeGun(obj2), undefined, err2 => {
-        console.warn('OBJ simples falhou:', err2);
-        // tenta DAE (Gun.dae)
+      // 2) tenta apenas OBJ
+      objLoader.load(FILES.gunOBJ, obj2 => {
+        finalizeGun(obj2);
+      }, undefined, err2 => {
+        console.warn('OBJ simples também falhou:', err2);
+        // 3) tenta DAE
         daeLoader.load(FILES.gunDAE, collada => {
-          if (collada && collada.scene) finalizeGun(collada.scene);
-          else logError('Falha ao carregar arma em qualquer formato.');
-        }, undefined, err3 => logError('Falha ao carregar Gun.dae: ' + err3));
+          if (collada && collada.scene) {
+            finalizeGun(collada.scene);
+          } else {
+            logError('Falha ao carregar arma (nenhum formato válido encontrado).');
+          }
+        }, undefined, err3 => {
+          logError('Falha ao carregar Gun.dae também: ' + err3);
+        });
       });
     });
   }, undefined, err => {
-    console.warn('MTL não carregou:', err);
-    // fallback: tenta OBJ
-    objLoader.load(FILES.gunOBJ, obj2 => finalizeGun(obj2), undefined, err2 => {
-      console.warn('OBJ falhou (fallback):', err2);
+    console.warn('MTL não carregou (talvez inexistente ou com path diferente):', err);
+    // fallback: tenta apenas OBJ
+    objLoader.load(FILES.gunOBJ, obj2 => {
+      finalizeGun(obj2);
+    }, undefined, err2 => {
+      console.warn('OBJ falhou:', err2);
       // DAE fallback
-      daeLoader.load(FILES.gunDAE, collada => { if (collada && collada.scene) finalizeGun(collada.scene); }, undefined, err3 => {
-        logError('Nenhuma arma carregou — será usado fallback visual.');
+      daeLoader.load(FILES.gunDAE, collada => {
+        if (collada && collada.scene) finalizeGun(collada.scene);
+      }, undefined, err3 => {
+        logError('Nenhuma forma de arma carregou. Usando fallback visual.');
       });
     });
   });
@@ -198,113 +258,121 @@ function finalizeGun(obj){
   gun = obj;
   gun.traverse(c => {
     if (c.isMesh){
-      c.castShadow = true; c.receiveShadow = false;
+      c.castShadow = true;
+      c.receiveShadow = false;
+      // tentar aplicar textura Gun.png caso material esteja sem mapa
       if (!c.material.map){
-        texLoader.load(FILES.gunPNG, tex => { c.material.map = tex; c.material.needsUpdate = true; }, undefined, ()=> console.warn('Gun.png não aplicado'));
+        texLoader.load(FILES.gunPNG, tex => {
+          c.material.map = tex;
+          c.material.needsUpdate = true;
+        }, undefined, err => {
+          console.warn('Falha ao aplicar Gun.png na arma:', err);
+        });
       }
     }
   });
   gun.scale.set(0.7,0.7,0.7);
-  gun.position.set(0.55,-0.38,-0.6);
-  camera.add(gun);
-  scene.add(camera); // garante camera na cena
-  console.log('Arma anexada');
+  gun.position.set(0.55, -0.38, -0.6);
+  camera.add(gun); // arma presa na câmera (first-person feel)
+  scene.add(camera); // garantir camera na cena
+  console.log('Arma carregada e anexada à câmera.');
 }
 
-/* ========== ZOMBIE LOADER ========== */
-function loadZombieAssets(){
-  // usamos idle.fbx como principal para mesh se ela trouxer mesh; caso contrário usamos placeholder
-  // Carrega idle.fbx -> se tiver mesh+animations usamos; também tentamos run/jump para animações
-  fbxLoader.load(FILES.fbxIdle, obj => {
-    // se o FBX contiver mesh, usa como visual; otherwise usamos animations se presente
-    const hasMesh = obj.children && obj.children.length && obj.children.some(c=>c.isMesh);
-    if (hasMesh){
-      zombieTemplate.mesh = obj;
-      zombieTemplate.mesh.traverse(c => { if (c.isMesh) { c.castShadow=true; c.receiveShadow=true; } });
-      // normalizamos escala (ajuste se necessário)
-      zombieTemplate.mesh.scale.set(0.008,0.008,0.008);
-    }
-    if (obj.animations && obj.animations.length) zombieTemplate.animations['idle'] = obj.animations[0];
-    console.log('idle.fbx carregado (mesh?', !!hasMesh, ', anims:', obj.animations ? obj.animations.length : 0, ')');
-  }, undefined, err => {
-    console.warn('idle.fbx não carregou:', err);
-  });
+/* ======= ZOMBIE TEMPLATE + ANIMS ======= */
+function loadZombieTemplate(){
+  // Esta função agora carrega o MODELO e DEPOIS as animações
+  zombieTemplate = { mesh: null, animations: {} }; // Mapeia por nome
 
-  // run
-  fbxLoader.load(FILES.fbxRun, obj => {
-    if (obj.animations && obj.animations.length) zombieTemplate.animations['run'] = obj.animations[0];
-    console.log('run.fbx carregado (anims:', obj.animations ? obj.animations.length : 0, ')');
-  }, undefined, err => {
-    console.warn('run.fbx não carregou:', err);
-  });
+  // 1. Carrega o Modelo Visual (characterMedium.fbx)
+  fbxLoader.load(FILES.fbxModel, obj => {
+      console.log('Modelo de zumbi carregado!', obj);
+      obj.scale.set(0.008, 0.008, 0.008); // Ajusta a escala
+      obj.traverse(c => {
+          if (c.isMesh) {
+              c.castShadow = true;
+              c.receiveShadow = true;
+          }
+      });
+      zombieTemplate.mesh = obj; // Salva o modelo visual
 
-  // jump
-  fbxLoader.load(FILES.fbxJump, obj => {
-    if (obj.animations && obj.animations.length) zombieTemplate.animations['jump'] = obj.animations[0];
-    console.log('jump.fbx carregado (anims:', obj.animations ? obj.animations.length : 0, ')');
-  }, undefined, err => {
-    console.warn('jump.fbx não carregou:', err);
-  });
+      // 2. Agora, carrega as animações
+      fbxLoader.load(FILES.fbxIdle, anim => {
+          console.log("Carregado idle.fbx");
+          zombieTemplate.animations['idle'] = anim.animations[0];
+      }, undefined, err => logError(`Falha ao carregar ${FILES.fbxIdle}`));
+      
+      fbxLoader.load(FILES.fbxRun, anim => {
+          console.log("Carregado run.fbx");
+          zombieTemplate.animations['run'] = anim.animations[0];
+      }, undefined, err => logError(`Falha ao carregar ${FILES.fbxRun}`));
+      
+      fbxLoader.load(FILES.fbxJump, anim => {
+          console.log("Carregado jump.fbx");
+          zombieTemplate.animations['jump'] = anim.animations[0];
+      }, undefined, err => logError(`Falha ao carregar ${FILES.fbxJump}`));
 
-  // se nenhum mesh for fornecido, preencha mesh com placeholder imediatamente (para evitar tela preta)
-  // (mantemos isto, porque se idle.fbx demora, queremos começar com placeholder)
-  if (!zombieTemplate.mesh){
-    const placeholder = new THREE.Group();
-    const box = new THREE.Mesh(new THREE.BoxGeometry(0.6,1.6,0.6), new THREE.MeshStandardMaterial({color:0x556b3a}));
-    box.castShadow=true; box.receiveShadow=true; box.position.y = 0.8;
-    placeholder.add(box);
-    zombieTemplate.mesh = placeholder;
-  }
+  }, undefined, err => {
+      logError(`ERRO CRÍTICO: Falha ao carregar modelo base ${FILES.fbxModel}. Zumbis não funcionarão.`);
+      // Fallback para o placeholder se o modelo principal falhar
+      const placeholder = new THREE.Group();
+      const b = new THREE.BoxGeometry(0.6,1.6,0.6);
+      const m = new THREE.Mesh(b, new THREE.MeshStandardMaterial({ color:0x556b3a }));
+      m.castShadow = true; m.receiveShadow = true; m.position.y = 0.8;
+      placeholder.add(m);
+      zombieTemplate.mesh = placeholder;
+  });
 }
 
-/* ========== SPAWN ZOMBIE ========== */
+/* ======= SPAWN ZOMBIE ======= */
 function spawnZombie(pos){
-  const id = 'z'+(++zcount);
-  // clone visual (se não tiver mesh, zombieTemplate.mesh já é placeholder)
-  let visual;
-  try { visual = zombieTemplate.mesh.clone(true); } catch(e) { 
-    // fallback seguro
-    visual = new THREE.Mesh(new THREE.BoxGeometry(0.6,1.6,0.6), new THREE.MeshStandardMaterial({color:0x556b3a}));
-    visual.position.y=0.8; visual.castShadow=true; visual.receiveShadow=true;
+  const id = 'z' + (++zombieCounter);
+  
+  // Se o template (modelo) ainda não carregou, não faz nada
+  if (!zombieTemplate || !zombieTemplate.mesh) {
+      logError("Template de zumbi ainda não carregado.");
+      return;
   }
-  const g = new THREE.Group();
-  g.add(visual);
-  g.position.copy(pos || new THREE.Vector3((Math.random()-0.5)*10, 0, -6 - Math.random()*8));
-  g.scale.set(1,1,1);
-  g.userData = { id, speed: 0.8 + Math.random()*0.8, mixer: null, hp:10 };
+  
+  const g = zombieTemplate.mesh.clone(true); // Clona o modelo carregado
+  g.position.copy(pos || new THREE.Vector3((Math.random()-0.5)*12, 0, -8 - Math.random()*8));
+  g.scale.set(0.008, 0.008, 0.008); // Garante a escala
+  
+  g.userData = { id, speed: 0.8 + Math.random()*0.8, mixer: null, hp: 10 };
 
-  // aplica animação 'run' se existir
+  // se houver animações no template, cria mixer e toca a animação 'run'
   if (zombieTemplate.animations['run']){
     try {
       const mixer = new THREE.AnimationMixer(g);
-      const clip = zombieTemplate.animations['run'];
-      const action = mixer.clipAction(clip);
-      action.timeScale = 1 + (Math.random()-0.5)*0.15;
+      const action = mixer.clipAction(zombieTemplate.animations['run']);
       action.play();
       g.userData.mixer = mixer;
       activeMixers.push(mixer);
-    } catch(e){ console.warn('Erro ao iniciar mixer do zumbi', e); }
+    } catch(e){
+      console.warn('erro aplicando anim ao zumbi:', e);
+    }
+  } else {
+      console.warn("Animação 'run' não encontrada para o zumbi.");
   }
 
   scene.add(g);
   zombies[id] = g;
-  console.log('Zumbi spawnado', id);
+  console.log('Zumbi spawnado:', id);
   return id;
 }
 
-/* ========== GAME LOOP ========== */
+/* ======= GAME LOOP ======= */
 function animate(){
   requestAnimationFrame(animate);
-  const dt = Math.min(0.05, (clock.getDelta && clock.getDelta()) || 0.016);
+  const dt = Math.min(0.05, clock.getDelta());
 
-  // mixers
-  for (let i = activeMixers.length-1; i>=0; i--){
+  // update mixers
+  for (let i = activeMixers.length -1; i>=0; i--){
     const m = activeMixers[i];
-    if (!m){ activeMixers.splice(i,1); continue; }
-    try { m.update(dt); } catch(e){ console.warn('mixer.update falhou', e); }
+    if (!m) { activeMixers.splice(i,1); continue; }
+    try { m.update(dt); } catch(e){ console.warn('mixer update falhou', e); }
   }
 
-  // update simple player/zombies
+  // simple player physics
   updatePlayer(dt);
   updateZombies(dt);
 
@@ -312,22 +380,31 @@ function animate(){
 }
 
 function updatePlayer(dt){
-  // compute forward + right (CORREÇÃO: forward x up para direito correto)
-  const forward = new THREE.Vector3(); camera.getWorldDirection(forward); forward.y = 0; forward.normalize();
-  const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0,1,0)).normalize();
-
+  // movement from controlsData (set by joystick/keys). We'll use simple keyboard if present.
+  // Implement basic WASD
+  const speed = player.speed;
+  const dir = new THREE.Vector3();
   const move = new THREE.Vector3();
-  if (keys.w) move.add(forward);
-  if (keys.s) move.add(forward.clone().negate());
-  if (keys.a) move.add(right.clone().negate());
-  if (keys.d) move.add(right);
+  if (keys.w) move.z -= 1;
+  if (keys.s) move.z += 1;
+  if (keys.a) move.x -= 1;
+  if (keys.d) move.x += 1;
+
+  // camera forward and right
+  const forward = new THREE.Vector3();
+  camera.getWorldDirection(forward);
+  forward.y = 0; forward.normalize();
+  const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0,1,0)).normalize(); // CORREÇÃO: forward x up
 
   if (move.lengthSq() > 0.0001){
     move.normalize();
-    player.pos.addScaledVector(move, player.speed * dt);
+    dir.addScaledVector(forward, -move.z); // note: z axis sign adjustment
+    dir.addScaledVector(right, move.x);
+    player.pos.addScaledVector(dir, speed * dt);
   }
 
   // camera follow
+  const camTarget = new THREE.Vector3(player.pos.x, player.pos.y + 0.4, player.pos.z - 0.2);
   camera.position.lerp(new THREE.Vector3(player.pos.x, player.pos.y + 1.6, player.pos.z + 5), 0.08);
   camera.lookAt(player.pos.x, player.pos.y + 0.6, player.pos.z);
 }
@@ -337,47 +414,75 @@ function updateZombies(dt){
   Object.keys(zombies).forEach(id => {
     const g = zombies[id];
     if (!g) return;
-    const dir = new THREE.Vector3(p.x - g.position.x, 0, p.z - g.position.z);
-    const d = dir.length();
-    if (d > 0.8){ dir.normalize(); g.position.addScaledVector(dir, (g.userData.speed||1) * dt); g.lookAt(p.x, g.position.y, p.z); }
+    const toPlayer = new THREE.Vector3(p.x - g.position.x, 0, p.z - g.position.z);
+    const dist = toPlayer.length();
+    if (dist > 0.8){
+      toPlayer.normalize();
+      g.position.addScaledVector(toPlayer, (g.userData.speed || 1) * dt);
+      g.lookAt(p.x, g.position.y, p.z);
+    } else {
+      // TODO: dano ao jogador
+    }
   });
 }
 
-/* ========== INPUT ========== */
-function onKeyDown(e){
+/* ======= INPUT ======= */
+const keys = { w:false, a:false, s:false, d:false };
+window.addEventListener('keydown', e => {
   if (e.code === 'KeyW') keys.w = true;
   if (e.code === 'KeyS') keys.s = true;
   if (e.code === 'KeyA') keys.a = true;
   if (e.code === 'KeyD') keys.d = true;
-  if (e.code === 'Space' && player.onGround){ player.onGround = false; player.pos.y += 0.5; } // simple jump
-}
-function onKeyUp(e){
+  if (e.code === 'Space' && player.onGround) { player.vel.y = 5; player.onGround = false; }
+});
+window.addEventListener('keyup', e => {
   if (e.code === 'KeyW') keys.w = false;
   if (e.code === 'KeyS') keys.s = false;
   if (e.code === 'KeyA') keys.a = false;
   if (e.code === 'KeyD') keys.d = false;
+});
+
+function onResize(){
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-/* ========== MOBILE JOYSTICK ========== */
+/* ======= MOBILE JOYSTICK SIMPLES ======= */
 function setupJoystick(){
   const joy = document.getElementById('joystick');
   const fire = document.getElementById('fireBtn');
   if (!joy) return;
   let dragging = false, origin = null;
-  joy.addEventListener('pointerdown', ev => { joy.setPointerCapture(ev.pointerId); dragging=true; origin={x:ev.clientX,y:ev.clientY}; joy.style.background='rgba(255,255,255,0.02)'; });
+  joy.addEventListener('pointerdown', ev => {
+    joy.setPointerCapture(ev.pointerId);
+    dragging = true; origin = {x:ev.clientX, y:ev.clientY};
+    joy.style.background = 'rgba(255,255,255,0.02)';
+  });
   joy.addEventListener('pointermove', ev => {
     if (!dragging) return;
-    const dx = ev.clientX - origin.x, dy = ev.clientY - origin.y;
-    keys.w = dy < -20; keys.s = dy > 20; keys.a = dx < -20; keys.d = dx > 20;
+    const dx = ev.clientX - origin.x;
+    const dy = ev.clientY - origin.y;
+    keys.w = dy < -20;
+    keys.s = dy > 20;
+    keys.a = dx < -20;
+    keys.d = dx > 20;
   });
-  joy.addEventListener('pointerup', ev => { dragging=false; keys.w=keys.s=keys.a=keys.d=false; joy.style.background=''; });
-  if (fire) fire.addEventListener('pointerdown', spawnMuzzleFlash);
+  joy.addEventListener('pointerup', ev => {
+    dragging = false;
+    keys.w = keys.s = keys.a = keys.d = false;
+    joy.style.background = '';
+  });
+
+  if (fire){
+    fire.addEventListener('pointerdown', ()=> spawnMuzzleFlash());
+  }
 }
 
-/* ========== MUZZLE ========== */
+/* ======= MUZZLE / TIRO VISUAL ======= */
 function spawnMuzzleFlash(){
   const geo = new THREE.PlaneGeometry(0.45,0.45);
-  const mat = new THREE.MeshBasicMaterial({ color:0xffe7c7, transparent:true, opacity:0.95, side:THREE.DoubleSide });
+  const mat = new THREE.MeshBasicMaterial({ color:0xffe7c7, transparent:true, opacity:0.95, side: THREE.DoubleSide });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.copy(camera.position).add(new THREE.Vector3(0, -0.25, -0.9).applyQuaternion(camera.quaternion));
   mesh.quaternion.copy(camera.quaternion);
@@ -385,12 +490,32 @@ function spawnMuzzleFlash(){
   setTimeout(()=> scene.remove(mesh), 90);
 }
 
-/* ========== UTIL ========== */
-function toggleShadows(){ renderer.shadowMap.enabled = !renderer.shadowMap.enabled; document.getElementById('btnShadows').innerText = 'Sombras: ' + (renderer.shadowMap.enabled ? 'ON' : 'OFF'); }
-function toggleDebug(){ Object.keys(zombies).forEach(id => { const g = zombies[id]; if (!g.userData._bh){ const bh = new THREE.BoxHelper(g, 0xff0000); scene.add(bh); g.userData._bh = bh; } else { scene.remove(g.userData._bh); delete g.userData._bh; } }); }
-function onResize(){ camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+/* ======= UTILIDADES / DEBUG ======= */
+function toggleShadows(){
+  renderer.shadowMap.enabled = !renderer.shadowMap.enabled;
+  document.getElementById('btnShadows').innerText = 'Sombras: ' + (renderer.shadowMap.enabled ? 'ON' : 'OFF');
+}
 
-console.log('Esperados (case-sensitive):', FILES);
+function toggleDebug(){
+  Object.keys(zombies).forEach(id => {
+    const g = zombies[id];
+    if (!g.userData._bh) {
+      const bh = new THREE.BoxHelper(g, 0xff0000);
+      scene.add(bh);
+      g.userData._bh = bh;
+    } else {
+      scene.remove(g.userData._bh);
+      delete g.userData._bh;
+    }
+  });
+}
+
+/* ======= safe console log to help debug headless phones ======= */
+console.log('Arquivos esperados (case-sensitive):', FILES);
+console.log('Se algo der errado, abra DevTools / Network no navegador para ver 404s.');
+
 </script>
 </body>
 </html>
+
+
