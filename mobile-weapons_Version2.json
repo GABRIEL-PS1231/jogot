@@ -1,0 +1,48 @@
+{
+  "weapons": [
+    {
+      "id": "shock-pistol",
+      "name": "Shock Pistol",
+      "type": "ranged",
+      "damage": 18,
+      "fireRate": 0.32,
+      "description": "Pistola com descarga elétrica, bom contra inimigos de armadura leve",
+      "icon": ""
+    },
+    {
+      "id": "plasma-rifle",
+      "name": "Plasma Rifle",
+      "type": "ranged",
+      "damage": 34,
+      "fireRate": 0.18,
+      "description": "Arma de alto dano, recuo moderado",
+      "icon": ""
+    },
+    {
+      "id": "blade-x",
+      "name": "Blade X",
+      "type": "melee",
+      "damage": 52,
+      "speed": 1.0,
+      "description": "Lâmina experimental, forte e estilosa",
+      "icon": ""
+    }
+  ],
+  "meleeSkins": [
+    {
+      "id": "carbon-guard",
+      "name": "Carbon Guard",
+      "img": ""
+    },
+    {
+      "id": "neon-edge",
+      "name": "Neon Edge",
+      "img": ""
+    },
+    {
+      "id": "golden-razor",
+      "name": "Golden Razor",
+      "img": ""
+    }
+  ]
+}
