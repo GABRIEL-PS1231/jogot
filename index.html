@@ -2,519 +2,525 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <title>Jogo Zumbi - Versão Melhorada</title>
+  <title>Jogo Zumbi - Versão Estável</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    html,body{margin:0;height:100%;overflow:hidden;background:#0b0b0f;color:#ddd;font-family:Inter, Arial;}
-    #container{width:100%;height:100%;position:relative;}
-    #overlayUI{
-      position:absolute;left:12px;bottom:12px;z-index:10;color:#fff;
-      background:linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.45));
-      padding:8px;border-radius:8px;font-size:14px;
-      backdrop-filter: blur(4px);
-    }
-    .btn{background:rgba(255,255,255,0.06);padding:6px 10px;border-radius:6px;margin-right:6px;border:1px solid rgba(255,255,255,0.04);cursor:pointer;color:#fff}
-    #fps{font-size:12px;opacity:0.85}
+    html,body{height:100%;margin:0;background:#070607;overflow:hidden;font-family:Inter,Arial}
+    #app{width:100%;height:100%;position:relative}
     canvas{display:block}
-    /* mobile joystick placeholder */
-    #joystick{position:absolute;left:12px;bottom:80px;width:120px;height:120px;border-radius:50%;z-index:40;touch-action:none}
-    #fireBtn{position:absolute;right:18px;bottom:70px;width:82px;height:82px;border-radius:50%;z-index:40;background:rgba(255,0,0,0.08);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+    #ui{position:absolute;left:10px;bottom:12px;z-index:20;color:#eee}
+    .btn{background:rgba(255,255,255,0.04);padding:8px 10px;border-radius:8px;margin-right:6px;border:1px solid rgba(255,255,255,0.03);color:#fff;cursor:pointer}
+    #fireBtn{position:absolute;right:18px;bottom:70px;width:86px;height:86px;border-radius:50%;z-index:30;background:rgba(160,20,20,0.18);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800}
+    #joystick{position:absolute;left:12px;bottom:80px;width:120px;height:120px;border-radius:50%;z-index:30;touch-action:none}
+    #loading{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:50;color:#fff;background:rgba(0,0,0,0.5);padding:18px;border-radius:10px;font-size:16px}
+    #errors{position:absolute;left:10px;top:10px;z-index:60;color:#ff7766;max-width:40%}
+    @media(max-width:720px){
+      #errors{max-width:80%}
+    }
   </style>
 </head>
 <body>
-  <div id="container"></div>
-  <div id="overlayUI">
-    <span id="fps">FPS: --</span>
-    <div style="margin-top:6px">
-      <button id="toggleShadows" class="btn">Sombras: ON</button>
-      <button id="spawnZombieBtn" class="btn">Spawn Zumbi</button>
-      <button id="toggleDebug" class="btn">Debug</button>
+  <div id="app"></div>
+  <div id="loading">Carregando recursos... <span id="loadPerc">0%</span></div>
+  <div id="errors"></div>
+
+  <div id="ui">
+    <div id="fps">FPS: --</div>
+    <div style="margin-top:6px;">
+      <button id="btnSpawn" class="btn">Spawn Zumbi</button>
+      <button id="btnShadows" class="btn">Sombras: ON</button>
+      <button id="btnDebug" class="btn">Debug</button>
     </div>
   </div>
 
-  <!-- optional mobile controls -->
   <div id="joystick" aria-hidden="true"></div>
   <div id="fireBtn" aria-hidden="true">ATIRAR</div>
 
-  <!-- three.js e loaders (non-module builds, mais compatíveis com Pages) -->
+  <!-- three.js e loaders -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/loaders/FBXLoader.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/loaders/OBJLoader.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/loaders/MTLLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/loaders/ColladaLoader.js"></script>
 
-  <script>
-  /******************************************************************
-   * CONFIG - ajuste aqui se renomear arquivos no repo (case-sensitive)
-   ******************************************************************/
-  const FILE_GUN_OBJ = 'Gun.obj';
-  const FILE_GUN_MTL = 'Gun.mtl';
-  const FILE_GUN_PNG = 'Gun.png';
-  const FILE_GROUND = 'Sample.png';
-  const FILE_ZOMBIE_IDLE = 'idle.fbx';
-  const FILE_ZOMBIE_RUN  = 'run.fbx';
-  const FILE_ZOMBIE_JUMP = 'jump.fbx';
-  // skins (se tiver várias, adicione os nomes exatos)
-  const ZOMBIE_SKINS = ['Sample.png']; // fallback para Sample.png
-  /******************************************************************/
+<script>
+/* =========================
+   CONFIG (usar exatamente estes nomes)
+   ========================= */
+const FILES = {
+  gunOBJ: 'Gun.obj',
+  gunMTL: 'Gun.mtl',
+  gunDAE: 'Gun.dae',
+  gunPNG: 'Gun.png',
+  ground: 'Sample.png',
+  fbxIdle: 'idle.fbx',
+  fbxRun: 'run.fbx',
+  fbxJump: 'jump.fbx'
+};
+/* ========================= */
 
-  // globals
-  let scene, camera, renderer, clock, mixers = [], activeMixers = [], controlsData = {};
-  let zombieTemplate = null, gunObject = null;
-  const zombies = {}; // id -> group
-  const container = document.getElementById('container');
+const app = document.getElementById('app');
+const loadingEl = document.getElementById('loading');
+const loadPerc = document.getElementById('loadPerc');
+const errorsEl = document.getElementById('errors');
+let loadCount = 0, loadTotal = 6; // estimativa - ajustaremos conforme carregamentos
 
-  // movement/player state
-  const player = {
-    pos: new THREE.Vector3(0, 1.2, 4),
-    velocity: new THREE.Vector3(),
-    speed: 4.5,
-    onGround: true,
-    yaw: 0
-  };
+// THREE globals
+let scene, camera, renderer, clock;
+let mixers = [], activeMixers = [];
+let fbxLoader, objLoader, mtlLoader, daeLoader, texLoader;
+let gun = null;
+let zombieTemplate = null;
+const zombies = {};
+let zombieCounter = 0;
+const player = { pos: new THREE.Vector3(0,1.2,4), vel: new THREE.Vector3(), speed: 4.5, onGround:true };
 
-  init();
-  animate();
+init();
+animate();
 
-  function init(){
-    // scene + camera
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x06060a);
+function logError(msg){
+  console.error(msg);
+  errorsEl.innerText += msg + '\n';
+}
 
-    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
-    camera.position.set(0, 1.6, 6);
-    camera.lookAt(0,1,0);
-
-    // renderer
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    container.appendChild(renderer.domElement);
-
-    // clock
-    clock = new THREE.Clock();
-
-    // LIGHTS - mais visibilidade mas ainda sombria
-    const amb = new THREE.HemisphereLight(0x8888aa, 0x120b14, 0.6);
-    scene.add(amb);
-
-    const dir = new THREE.DirectionalLight(0xfff3d8, 1.0);
-    dir.position.set(6, 12, 6);
-    dir.castShadow = true;
-    dir.shadow.mapSize.set(2048,2048);
-    dir.shadow.camera.left = -20; dir.shadow.camera.right = 20;
-    dir.shadow.camera.top = 20; dir.shadow.camera.bottom = -20;
-    dir.shadow.camera.near = 0.5; dir.shadow.camera.far = 60;
-    scene.add(dir);
-
-    // rim light pra destacar modelos
-    const rim = new THREE.DirectionalLight(0x99bbff, 0.25);
-    rim.position.set(-6, 6, -8);
-    scene.add(rim);
-
-    // floor
-    const floorGeo = new THREE.PlaneGeometry(300,300);
-    const loader = new THREE.TextureLoader();
-    loader.setCrossOrigin('');
-    loader.load(FILE_GROUND, tex => {
-      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-      tex.repeat.set(80,80);
-      const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 });
-      const floor = new THREE.Mesh(floorGeo, mat);
-      floor.rotation.x = -Math.PI/2;
-      floor.receiveShadow = true;
-      scene.add(floor);
-      console.log('Chão carregado:', FILE_GROUND);
-    }, undefined, err => {
-      console.warn('Falha ao carregar Sample.png (fundo). Verifique nome/path.', err);
-      // fallback floor
-      const fallback = new THREE.Mesh(floorGeo, new THREE.MeshStandardMaterial({color:0x131316}));
-      fallback.rotation.x = -Math.PI/2;
-      fallback.receiveShadow = true;
-      scene.add(fallback);
-    });
-
-    // carregadores
-    fbxLoader = new THREE.FBXLoader();
-    objLoader = new THREE.OBJLoader();
-    mtlLoader = new THREE.MTLLoader();
-
-    // carrega arma
-    loadGun();
-
-    // carrega modelo zumbi e animações
-    loadZombieTemplate();
-
-    // spawn inicial
-    for (let i=0;i<2;i++) spawnZombie();
-
-    // HUD buttons
-    document.getElementById('spawnZombieBtn').addEventListener('click', ()=> spawnZombie());
-    document.getElementById('toggleShadows').addEventListener('click', toggleShadows);
-    document.getElementById('toggleDebug').addEventListener('click', toggleDebug);
-
-    // mobile joystick simple implementation
-    setupSimpleJoystick();
-
-    // eventos resize e teclado
-    window.addEventListener('resize', onWindowResize);
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
-
-    // debug fps
-    setInterval(()=> {
-      const el = document.getElementById('fps');
-      if (!el) return;
-      el.innerText = `FPS: ${Math.round(1/Math.max(0.0001, clock.getDelta()))}`;
-    },1000);
+// init scene
+function init(){
+  // checa WebGL
+  if (!THREE.WEBGL.isWebGLAvailable()){
+    document.body.innerHTML = '<div style="color:#fff;padding:30px">Seu navegador não suporta WebGL.</div>';
+    return;
   }
 
-  /***********************
-   * LOADERS & ASSETS
-   ***********************/
-  let fbxLoader, objLoader, mtlLoader;
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x07060a);
+  scene.fog = new THREE.FogExp2(0x07060a, 0.0035);
 
-  function loadGun(){
-    // MTL -> OBJ -> apply texture fix
-    mtlLoader.load(FILE_GUN_MTL, materials => {
-      materials.preload();
-      objLoader.setMaterials(materials);
-      objLoader.load(FILE_GUN_OBJ, obj => {
-        gunObject = obj;
-        gunObject.traverse(c => {
-          if (c.isMesh) {
-            c.castShadow = true;
-            c.receiveShadow = false;
-            // tenta forçar textura caso MTL tenha referência pro Gun.png com nome diferente
-            if (!c.material.map) {
-              const tloader = new THREE.TextureLoader();
-              tloader.load(FILE_GUN_PNG, tex => {
-                c.material.map = tex;
-                c.material.needsUpdate = true;
-                console.log('Aplicada textura da arma:', FILE_GUN_PNG);
-              }, undefined, err => {
-                console.warn('Falha ao carregar textura da arma:', FILE_GUN_PNG, err);
-              });
-            }
+  camera = new THREE.PerspectiveCamera(62, window.innerWidth/window.innerHeight, 0.1, 1000);
+  camera.position.set(0, 1.6, 6);
+
+  renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  app.appendChild(renderer.domElement);
+
+  clock = new THREE.Clock();
+
+  // loaders
+  fbxLoader = new THREE.FBXLoader();
+  objLoader = new THREE.OBJLoader();
+  mtlLoader = new THREE.MTLLoader();
+  daeLoader = new THREE.ColladaLoader();
+  texLoader = new THREE.TextureLoader();
+
+  // lights
+  const hemi = new THREE.HemisphereLight(0x99aaff, 0x120a10, 0.55);
+  scene.add(hemi);
+
+  const dir = new THREE.DirectionalLight(0xfff3d8, 1.0);
+  dir.position.set(8, 12, 6);
+  dir.castShadow = true;
+  dir.shadow.mapSize.set(2048,2048);
+  dir.shadow.camera.left = -20; dir.shadow.camera.right = 20;
+  dir.shadow.camera.top = 20; dir.shadow.camera.bottom = -20;
+  dir.shadow.camera.near = 0.5; dir.shadow.camera.far = 60;
+  scene.add(dir);
+
+  const rim = new THREE.DirectionalLight(0x88b4ff, 0.25);
+  rim.position.set(-10,8,-6);
+  scene.add(rim);
+
+  // ground (tenta carregar textura; se falhar, usa cor)
+  texLoader.load(FILES.ground, tex => {
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(60,60);
+    const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1 });
+    const geo = new THREE.PlaneGeometry(400,400);
+    const floor = new THREE.Mesh(geo, mat);
+    floor.rotation.x = -Math.PI/2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+    incrementLoad();
+  }, undefined, err => {
+    // fallback floor
+    const geo = new THREE.PlaneGeometry(400,400);
+    const mat = new THREE.MeshStandardMaterial({ color:0x111114 });
+    const floor = new THREE.Mesh(geo, mat);
+    floor.rotation.x = -Math.PI/2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+    logError('Falha ao carregar Sample.png (floor). Usando fallback.');
+    incrementLoad();
+  });
+
+  // sky gradient (simples)
+  const skyGeo = new THREE.SphereGeometry(300, 32, 32);
+  const skyMat = new THREE.MeshBasicMaterial({ color: 0x050406, side: THREE.BackSide, fog:false });
+  const sky = new THREE.Mesh(skyGeo, skyMat);
+  scene.add(sky);
+
+  // luzes de preenchimento local para evitar sombras excessivas
+  const fill1 = new THREE.PointLight(0x88aaff, 0.12, 40); fill1.position.set(0,4,6); scene.add(fill1);
+  const fill2 = new THREE.PointLight(0xffcccc, 0.09, 40); fill2.position.set(-6,2,-6); scene.add(fill2);
+
+  // helpers (off por default). Não adicionamos BoxHelpers agora.
+
+  // load gun (três tentativas: MTL+OBJ, OBJ, DAE)
+  loadGun();
+
+  // load zombie fbx animations/template
+  loadZombieTemplate();
+
+  // spawn alguns zumbis pra ver
+  setTimeout(()=>{ spawnZombie(); spawnZombie(); }, 800);
+
+  // UI events
+  document.getElementById('btnSpawn').addEventListener('click', ()=> spawnZombie());
+  document.getElementById('btnShadows').addEventListener('click', toggleShadows);
+  document.getElementById('btnDebug').addEventListener('click', toggleDebug);
+  document.getElementById('fireBtn').addEventListener('pointerdown', ()=> spawnMuzzleFlash());
+
+  setupJoystick(); // mobile simple
+
+  window.addEventListener('resize', onResize);
+
+  // fps update
+  setInterval(()=> {
+    const fps = Math.round(1/Math.max(0.0001, clock.getDelta()));
+    const el = document.getElementById('fps');
+    if (el) el.innerText = `FPS: ${fps}`;
+  }, 1000);
+}
+
+/* ======= Loading helpers ======= */
+function incrementLoad(){
+  loadCount++;
+  const perc = Math.round((loadCount / loadTotal) * 100);
+  loadPerc.innerText = perc + '%';
+  if (loadCount >= loadTotal){
+    setTimeout(()=> {
+      loadingEl.style.display = 'none';
+    }, 400);
+  }
+}
+
+/* ======= GUN LOADING ======= */
+function loadGun(){
+  // 1) tenta MTL+OBJ
+  mtlLoader.load(FILES.gunMTL, materials => {
+    materials.preload();
+    objLoader.setMaterials(materials);
+    objLoader.load(FILES.gunOBJ, obj => {
+      finalizeGun(obj);
+      incrementLoad();
+    }, undefined, err => {
+      console.warn('OBJ com MTL falhou:', err);
+      // 2) tenta apenas OBJ
+      objLoader.load(FILES.gunOBJ, obj2 => {
+        finalizeGun(obj2);
+        incrementLoad();
+      }, undefined, err2 => {
+        console.warn('OBJ simples também falhou:', err2);
+        // 3) tenta DAE
+        daeLoader.load(FILES.gunDAE, collada => {
+          if (collada && collada.scene) {
+            finalizeGun(collada.scene);
+            incrementLoad();
+          } else {
+            logError('Falha ao carregar arma (nenhum formato válido encontrado).');
+            incrementLoad();
           }
+        }, undefined, err3 => {
+          logError('Falha ao carregar Gun.dae também: ' + err3);
+          incrementLoad();
         });
-        gunObject.scale.set(0.7,0.7,0.7);
-        gunObject.position.set(0.55, -0.4, -0.6); // posicionamento relativo ao player
-        camera.add(gunObject);
-        scene.add(camera); // garantir que camera esteja em cena
-        console.log('Arma carregada:', FILE_GUN_OBJ, FILE_GUN_MTL);
-      }, undefined, err => {
-        console.error('Falha ao carregar OBJ da arma:', FILE_GUN_OBJ, err);
       });
+    });
+  }, undefined, err => {
+    console.warn('MTL não carregou (talvez inexistente ou com path diferente):', err);
+    // fallback: tenta apenas OBJ
+    objLoader.load(FILES.gunOBJ, obj2 => {
+      finalizeGun(obj2);
+      incrementLoad();
+    }, undefined, err2 => {
+      console.warn('OBJ falhou:', err2);
+      // DAE fallback
+      daeLoader.load(FILES.gunDAE, collada => {
+        if (collada && collada.scene) finalizeGun(collada.scene);
+        incrementLoad();
+      }, undefined, err3 => {
+        logError('Nenhuma forma de arma carregou. Usando fallback visual.');
+        incrementLoad();
+      });
+    });
+  });
+}
+
+function finalizeGun(obj){
+  gun = obj;
+  gun.traverse(c => {
+    if (c.isMesh){
+      c.castShadow = true;
+      c.receiveShadow = false;
+      // tentar aplicar textura Gun.png caso material esteja sem mapa
+      if (!c.material.map){
+        texLoader.load(FILES.gunPNG, tex => {
+          c.material.map = tex;
+          c.material.needsUpdate = true;
+        }, undefined, err => {
+          console.warn('Falha ao aplicar Gun.png na arma:', err);
+        });
+      }
+    }
+  });
+  gun.scale.set(0.7,0.7,0.7);
+  gun.position.set(0.55, -0.38, -0.6);
+  camera.add(gun); // arma presa na câmera (first-person feel)
+  scene.add(camera); // garantir camera na cena
+  console.log('Arma carregada e anexada à câmera.');
+}
+
+/* ======= ZOMBIE TEMPLATE + ANIMS ======= */
+function loadZombieTemplate(){
+  // Contamos que idle/run/jump podem existir. Tentamos carregar todos.
+  const animFiles = [FILES.fbxIdle, FILES.fbxRun, FILES.fbxJump];
+  zombieTemplate = { mesh: null, animations: [] };
+
+  // carregamos um pequeno placeholder imediatamente para evitar tela preta
+  const placeholder = new THREE.Group();
+  const b = new THREE.BoxGeometry(0.6,1.6,0.6);
+  const m = new THREE.Mesh(b, new THREE.MeshStandardMaterial({ color:0x556b3a }));
+  m.castShadow = true; m.receiveShadow = true; m.position.y = 0.8;
+  placeholder.add(m);
+  zombieTemplate.mesh = placeholder;
+
+  // para cada arquivo FBX, tentamos carregar e extrair animações/mesh
+  let loadedAnims = 0;
+  animFiles.forEach((name) => {
+    fbxLoader.load(name, obj => {
+      // se ainda não temos mesh principal (visual) e o FBX vem com child meshes, usamos
+      if (!zombieTemplate.mesh && obj.children.length) {
+        zombieTemplate.mesh = obj.clone(true);
+        zombieTemplate.mesh.scale.set(0.008,0.008,0.008);
+      }
+      if (obj.animations && obj.animations.length){
+        obj.animations.forEach(a => zombieTemplate.animations.push(a));
+      }
+      loadedAnims++;
+      console.log('FBX carregado:', name, 'anims:', obj.animations ? obj.animations.length : 0);
+      // ajustar carga total para loading UI
+      incrementLoad();
     }, undefined, err => {
-      console.warn('Falha ao carregar MTL:', FILE_GUN_MTL, err);
-      // tenta carregar apenas obj sem mtl
-      objLoader.load(FILE_GUN_OBJ, obj => {
-        gunObject = obj;
-        gunObject.traverse(c => { if (c.isMesh) c.castShadow = true; });
-        gunObject.scale.set(0.7,0.7,0.7);
-        camera.add(gunObject);
-        console.log('Arma carregada sem MTL:', FILE_GUN_OBJ);
-      }, undefined, errobj => {
-        console.error('Falha ao carregar OBJ (fallback):', FILE_GUN_OBJ, errobj);
-      });
+      console.warn('FBX não encontrado ou falhou:', name, err);
+      // ainda incrementamos para evitar hang do loading
+      incrementLoad();
     });
+  });
+}
+
+/* ======= SPAWN ZOMBIE ======= */
+function spawnZombie(pos){
+  const id = 'z' + (++zombieCounter);
+  const g = new THREE.Group();
+  g.position.copy(pos || new THREE.Vector3((Math.random()-0.5)*12, 0, -8 - Math.random()*8));
+  g.scale.set(1,1,1);
+  // adiciona mesh (clonando template)
+  let visual;
+  try {
+    visual = zombieTemplate.mesh ? zombieTemplate.mesh.clone(true) : null;
+  } catch(e){
+    visual = null;
   }
-
-  // carrega modelo base do zumbi + animações separadas (idle/run/jump)
-  function loadZombieTemplate(){
-    // carrega um FBX base (idle) e reúne as animações em userData.animations
-    fbxLoader.load(FILE_ZOMBIE_IDLE, base => {
-      base.traverse(c => { if (c.isMesh) { c.castShadow=true; c.receiveShadow=true; } });
-      base.scale.set(0.008,0.008,0.008);
-      zombieTemplate = base;
-      zombieTemplate.userData = zombieTemplate.userData || {};
-      zombieTemplate.userData.animations = zombieTemplate.animations ? zombie.animationsClone = zombieTemplate.animations.slice() : [];
-      console.log('Template base do zumbi carregado (idle):', FILE_ZOMBIE_IDLE);
-    }, undefined, err => {
-      console.warn('Não carregou idle.fbx — zumbi base faltando?', err);
-      zombieTemplate = new THREE.Group(); // fallback
-    });
-
-    // tentamos carregar animacoes separadas e concatenar
-    const animFiles = [FILE_ZOMBIE_IDLE, FILE_ZOMBIE_RUN, FILE_ZOMBIE_JUMP];
-    animFiles.forEach(name => {
-      fbxLoader.load(name, animObj => {
-        if (!zombieTemplate) zombieTemplate = new THREE.Group();
-        zombieTemplate.userData = zombieTemplate.userData || {};
-        zombieTemplate.userData.animations = zombieTemplate.userData.animations || [];
-        if (animObj.animations && animObj.animations.length){
-          animObj.animations.forEach(cl => zombieTemplate.userData.animations.push(cl));
-          console.log('Animação adicionada do arquivo:', name);
-        } else {
-          console.warn('Arquivo FBX sem animação:', name);
-        }
-      }, undefined, err => {
-        // não existindo, apenas log
-        console.warn('Falha ao carregar animação FBX (talv. não existe):', name, err);
-      });
-    });
-
-    // tenta pré-carregar skins (texturas)
-    const tloader = new THREE.TextureLoader();
-    ZOMBIE_SKINS.forEach(s => {
-      tloader.load(s, tex => {
-        console.log('Skin carregada:', s);
-      }, undefined, err => {
-        console.warn('Falha ao carregar skin:', s, err);
-      });
-    });
+  if (!visual){
+    // fallback box
+    const geo = new THREE.BoxGeometry(0.6,1.6,0.6);
+    const mat = new THREE.MeshStandardMaterial({ color:0x5b6b4d });
+    visual = new THREE.Mesh(geo, mat);
+    visual.castShadow = true; visual.receiveShadow = true; visual.position.y = 0.8;
   }
+  g.add(visual);
+  g.userData = { id, speed: 0.8 + Math.random()*0.8, mixer: null, hp: 10 };
 
-  /***********************
-   * SPAWN ZOMBIE
-   ***********************/
-  let zombieIdCounter = 0;
-  function spawnZombie(pos){
-    // cria grupo, instancia visual (clonando template) e adiciona mixer com clip aleatório
-    const id = 'z'+(++zombieIdCounter);
-    const group = new THREE.Group();
-    group.position.copy(pos || new THREE.Vector3((Math.random()-0.5)*10, 0, -6 - Math.random()*6));
-    group.rotation.y = Math.random()*Math.PI*2;
-    group.scale.set(1,1,1);
-
-    // modelo visual: clone do template (se existir) ou box fallback
-    if (zombieTemplate && zombieTemplate.children && zombieTemplate.children.length){
-      const clone = cloneFBX(zombieTemplate);
-      group.add(clone);
-    } else {
-      const geo = new THREE.BoxGeometry(0.6,1.6,0.6);
-      const mat = new THREE.MeshStandardMaterial({color:0x5b6b4d});
-      const m = new THREE.Mesh(geo, mat);
-      m.castShadow = true; m.receiveShadow = true;
-      m.position.y = 0.8;
-      group.add(m);
+  // se houver animações no template, cria mixer e toca uma aleatória
+  if (zombieTemplate.animations && zombieTemplate.animations.length){
+    try {
+      const mixer = new THREE.AnimationMixer(g);
+      const clip = zombieTemplate.animations[Math.floor(Math.random()*zombieTemplate.animations.length)];
+      const action = mixer.clipAction(clip);
+      action.play();
+      g.userData.mixer = mixer;
+      activeMixers.push(mixer);
+    } catch(e){
+      console.warn('erro aplicando anim ao zumbi:', e);
     }
-
-    // adiciona collider simples
-    group.userData = {
-      id,
-      speed: 1 + Math.random()*0.6,
-      hp: 10,
-      mixer: null
-    };
-
-    // animação: se template tiver clips, cria mixer e play
-    if (zombieTemplate && zombieTemplate.userData && Array.isArray(zombieTemplate.userData.animations) && zombieTemplate.userData.animations.length){
-      try {
-        const mixer = new THREE.AnimationMixer(group);
-        const clips = zombieTemplate.userData.animations;
-        const clip = clips[Math.floor(Math.random()*clips.length)];
-        const action = mixer.clipAction(clip);
-        action.timeScale = 1 + (Math.random()-0.5)*0.2;
-        action.play();
-        group.userData.mixer = mixer;
-        activeMixers.push(mixer);
-      } catch(e){
-        console.warn('Erro ao aplicar animação ao zumbi', e);
-      }
-    }
-
-    scene.add(group);
-    zombies[id] = group;
-    console.log('Zumbi spawnado:', id);
-    return id;
   }
 
-  // util: clona objeto FBX (trivial, deep clone by scene graph)
-  function cloneFBX(source){
-    const clone = source.clone(true);
-    // clone animations podem estar em userData; mas AnimationMixer será feito por spawnZombie
-    return clone;
+  scene.add(g);
+  zombies[id] = g;
+  console.log('Zumbi spawnado:', id);
+  return id;
+}
+
+/* ======= GAME LOOP ======= */
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+
+  // update mixers
+  for (let i = activeMixers.length -1; i>=0; i--){
+    const m = activeMixers[i];
+    if (!m) { activeMixers.splice(i,1); continue; }
+    try { m.update(dt); } catch(e){ console.warn('mixer update falhou', e); }
   }
 
-  /***********************
-   * GAME LOOP
-   ***********************/
-  const tempVec = new THREE.Vector3();
-  function animate(){
-    requestAnimationFrame(animate);
-    const dt = Math.min(0.05, clock.getDelta());
+  // simple player physics
+  updatePlayer(dt);
+  updateZombies(dt);
 
-    // update mixers
-    for (let i = activeMixers.length-1; i>=0; i--){
-      const m = activeMixers[i];
-      if (!m) { activeMixers.splice(i,1); continue; }
-      m.update(dt);
-    }
+  renderer.render(scene, camera);
+}
 
-    updatePlayer(dt);
-    updateZombies(dt);
+function updatePlayer(dt){
+  // movement from controlsData (set by joystick/keys). We'll use simple keyboard if present.
+  // Implement basic WASD
+  const speed = player.speed;
+  const dir = new THREE.Vector3();
+  const move = new THREE.Vector3();
+  if (keys.w) move.z -= 1;
+  if (keys.s) move.z += 1;
+  if (keys.a) move.x -= 1;
+  if (keys.d) move.x += 1;
 
-    renderer.render(scene, camera);
+  // camera forward and right
+  const forward = new THREE.Vector3();
+  camera.getWorldDirection(forward);
+  forward.y = 0; forward.normalize();
+  const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0,1,0)).normalize(); // CORREÇÃO: forward x up
+
+  if (move.lengthSq() > 0.0001){
+    move.normalize();
+    dir.addScaledVector(forward, -move.z); // note: z axis sign adjustment
+    dir.addScaledVector(right, move.x);
+    player.pos.addScaledVector(dir, speed * dt);
   }
 
-  function updatePlayer(dt){
-    // input -> desired velocity
-    const forwardVec = new THREE.Vector3();
-    camera.getWorldDirection(forwardVec);
-    forwardVec.y = 0; forwardVec.normalize();
+  // camera follow
+  const camTarget = new THREE.Vector3(player.pos.x, player.pos.y + 0.4, player.pos.z - 0.2);
+  camera.position.lerp(new THREE.Vector3(player.pos.x, player.pos.y + 1.6, player.pos.z + 5), 0.08);
+  camera.lookAt(player.pos.x, player.pos.y + 0.6, player.pos.z);
+}
 
-    // compute right vector (CORREÇÃO: forward x up, não up x forward) -> evita joystick invertido
-    const up = new THREE.Vector3(0,1,0);
-    const rightVec = new THREE.Vector3().crossVectors(forwardVec, up).normalize();
-
-    const move = new THREE.Vector3();
-    if (controlsData.forward) move.add(forwardVec);
-    if (controlsData.backward) move.add(forwardVec.clone().negate());
-    if (controlsData.left) move.add(rightVec.clone().negate());
-    if (controlsData.right) move.add(rightVec);
-
-    if (move.lengthSq()>0.0001) {
-      move.normalize();
-      // smoothing interpolation for nicer movement
-      player.velocity.lerp(move.multiplyScalar(player.speed), 0.2);
-    } else {
-      player.velocity.lerp(new THREE.Vector3(0,0,0), 0.18);
-    }
-
-    // gravity + vertical
-    if (!player.onGround) player.velocity.y -= 9.8 * dt;
-
-    // move player
-    player.pos.addScaledVector(player.velocity, dt);
-    // simple ground collision
-    if (player.pos.y < 1.2) { player.pos.y = 1.2; player.onGround = true; player.velocity.y = 0; }
-
-    // set camera relative to player
-    camera.position.lerp(new THREE.Vector3(player.pos.x, player.pos.y+0.4, player.pos.z + 0.0), 0.12);
-    camera.lookAt(player.pos.x + forwardVec.x*4, player.pos.y+0.4, player.pos.z+forwardVec.z*4);
-  }
-
-  function updateZombies(dt){
-    // simples AI: andar em direção ao jogador
-    Object.keys(zombies).forEach(id => {
-      const g = zombies[id];
-      if (!g) return;
-      tempVec.subVectors(new THREE.Vector3(player.pos.x,0,player.pos.z), new THREE.Vector3(g.position.x,0,g.position.z));
-      const dist = tempVec.length();
-      if (dist > 0.5) {
-        tempVec.normalize();
-        g.position.addScaledVector(tempVec, (g.userData.speed || 1) * dt);
-        // face player
-        g.lookAt(player.pos.x, g.position.y, player.pos.z);
-      } else {
-        // alcance — diminui HP do player (não implementado full)
-        // aqui podemos adicionar som ou ataque
-      }
-    });
-  }
-
-  /***********************
-   * INPUT (teclado + mobile joystick)
-   ***********************/
-  function onKeyDown(e){
-    if (e.code === 'KeyW') controlsData.forward = true;
-    if (e.code === 'KeyS') controlsData.backward = true;
-    if (e.code === 'KeyA') controlsData.left = true;
-    if (e.code === 'KeyD') controlsData.right = true;
-    if (e.code === 'Space' && player.onGround) { player.velocity.y = 5; player.onGround = false; }
-  }
-  function onKeyUp(e){
-    if (e.code === 'KeyW') controlsData.forward = false;
-    if (e.code === 'KeyS') controlsData.backward = false;
-    if (e.code === 'KeyA') controlsData.left = false;
-    if (e.code === 'KeyD') controlsData.right = false;
-  }
-
-  // Simple touch joystick for mobile (lightweight)
-  function setupSimpleJoystick(){
-    const joy = document.getElementById('joystick');
-    const fire = document.getElementById('fireBtn');
-    if (!joy || !fire) return;
-
-    let dragging = false;
-    let origin = null;
-
-    joy.addEventListener('pointerdown', (ev) => {
-      joy.setPointerCapture(ev.pointerId);
-      dragging = true;
-      origin = {x: ev.clientX, y: ev.clientY};
-      joy.style.background = 'rgba(255,255,255,0.03)';
-    });
-    joy.addEventListener('pointermove', (ev) => {
-      if (!dragging) return;
-      const dx = ev.clientX - origin.x;
-      const dy = ev.clientY - origin.y;
-      // map dx/dy -> directional booleans
-      controlsData.right = dx > 20;
-      controlsData.left = dx < -20;
-      controlsData.forward = dy < -20;
-      controlsData.backward = dy > 20;
-    });
-    joy.addEventListener('pointerup', (ev) => {
-      dragging = false;
-      controlsData.forward = controlsData.backward = controlsData.left = controlsData.right = false;
-      joy.style.background = '';
-    });
-
-    // fire button quick handler
-    fire.addEventListener('pointerdown', ()=> {
-      // efeito de tiro simples: pequeno flash e soma de pontos ou spawn bullet
-      spawnMuzzleFlash();
-    });
-  }
-
-  // spawn visual simple (muzzle flash in front of camera)
-  function spawnMuzzleFlash(){
-    const sGeo = new THREE.PlaneGeometry(0.4,0.4);
-    const mat = new THREE.MeshBasicMaterial({color:0xffefce,transparent:true,opacity:0.85,side:THREE.DoubleSide});
-    const flash = new THREE.Mesh(sGeo, mat);
-    flash.position.copy(camera.position).add(new THREE.Vector3(0, -0.2, -0.8).applyQuaternion(camera.quaternion));
-    flash.quaternion.copy(camera.quaternion);
-    scene.add(flash);
-    setTimeout(()=> scene.remove(flash), 80);
-  }
-
-  /***********************
-   * UTIL / DEBUG
-   ***********************/
-  function toggleShadows(){
-    renderer.shadowMap.enabled = !renderer.shadowMap.enabled;
-    document.getElementById('toggleShadows').innerText = 'Sombras: ' + (renderer.shadowMap.enabled ? 'ON' : 'OFF');
-  }
-  function toggleDebug(){
-    // exemplo simples: adiciona/removes caixas de debug sobre zumbis
-    Object.values(zombies).forEach(g => {
-      if (!g.userData.boxHelper) {
-        const box = new THREE.BoxHelper(g, 0xff0000);
-        scene.add(box);
-        g.userData.boxHelper = box;
-      } else {
-        scene.remove(g.userData.boxHelper);
-        delete g.userData.boxHelper;
-      }
-    });
-  }
-
-  function onWindowResize(){
-    camera.aspect = window.innerWidth/window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  }
-
-  // remover zumbi (dispose mixer)
-  function removeZombie(id){
+function updateZombies(dt){
+  const p = player.pos;
+  Object.keys(zombies).forEach(id => {
     const g = zombies[id];
     if (!g) return;
-    if (g.userData.mixer){
-      const idx = activeMixers.indexOf(g.userData.mixer);
-      if (idx !== -1) activeMixers.splice(idx,1);
-      try { g.userData.mixer.stopAllAction(); } catch(e){}
-      delete g.userData.mixer;
+    const toPlayer = new THREE.Vector3(p.x - g.position.x, 0, p.z - g.position.z);
+    const dist = toPlayer.length();
+    if (dist > 0.8){
+      toPlayer.normalize();
+      g.position.addScaledVector(toPlayer, (g.userData.speed || 1) * dt);
+      g.lookAt(p.x, g.position.y, p.z);
+    } else {
+      // TODO: dano ao jogador
     }
-    scene.remove(g);
-    delete zombies[id];
-  }
+  });
+}
 
-  // debug console gentle hints
-  console.log('Jogo inicializado. Verifique o console Network para 404/CORS em assets (se houver).');
-  console.log('Arquivos esperados (case-sensitive):', FILE_GUN_OBJ, FILE_GUN_MTL, FILE_GUN_PNG, FILE_GROUND, FILE_ZOMBIE_IDLE, FILE_ZOMBIE_RUN, FILE_ZOMBIE_JUMP);
-  </script>
+/* ======= INPUT ======= */
+const keys = { w:false, a:false, s:false, d:false };
+window.addEventListener('keydown', e => {
+  if (e.code === 'KeyW') keys.w = true;
+  if (e.code === 'KeyS') keys.s = true;
+  if (e.code === 'KeyA') keys.a = true;
+  if (e.code === 'KeyD') keys.d = true;
+  if (e.code === 'Space' && player.onGround) { player.vel.y = 5; player.onGround = false; }
+});
+window.addEventListener('keyup', e => {
+  if (e.code === 'KeyW') keys.w = false;
+  if (e.code === 'KeyS') keys.s = false;
+  if (e.code === 'KeyA') keys.a = false;
+  if (e.code === 'KeyD') keys.d = false;
+});
+
+function onResize(){
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+/* ======= MOBILE JOYSTICK SIMPLES ======= */
+function setupJoystick(){
+  const joy = document.getElementById('joystick');
+  const fire = document.getElementById('fireBtn');
+  if (!joy) return;
+  let dragging = false, origin = null;
+  joy.addEventListener('pointerdown', ev => {
+    joy.setPointerCapture(ev.pointerId);
+    dragging = true; origin = {x:ev.clientX, y:ev.clientY};
+    joy.style.background = 'rgba(255,255,255,0.02)';
+  });
+  joy.addEventListener('pointermove', ev => {
+    if (!dragging) return;
+    const dx = ev.clientX - origin.x;
+    const dy = ev.clientY - origin.y;
+    keys.w = dy < -20;
+    keys.s = dy > 20;
+    keys.a = dx < -20;
+    keys.d = dx > 20;
+  });
+  joy.addEventListener('pointerup', ev => {
+    dragging = false;
+    keys.w = keys.s = keys.a = keys.d = false;
+    joy.style.background = '';
+  });
+
+  if (fire){
+    fire.addEventListener('pointerdown', ()=> spawnMuzzleFlash());
+  }
+}
+
+/* ======= MUZZLE / TIRO VISUAL ======= */
+function spawnMuzzleFlash(){
+  const geo = new THREE.PlaneGeometry(0.45,0.45);
+  const mat = new THREE.MeshBasicMaterial({ color:0xffe7c7, transparent:true, opacity:0.95, side: THREE.DoubleSide });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.copy(camera.position).add(new THREE.Vector3(0, -0.25, -0.9).applyQuaternion(camera.quaternion));
+  mesh.quaternion.copy(camera.quaternion);
+  scene.add(mesh);
+  setTimeout(()=> scene.remove(mesh), 90);
+}
+
+/* ======= UTILIDADES / DEBUG ======= */
+function toggleShadows(){
+  renderer.shadowMap.enabled = !renderer.shadowMap.enabled;
+  document.getElementById('btnShadows').innerText = 'Sombras: ' + (renderer.shadowMap.enabled ? 'ON' : 'OFF');
+}
+
+function toggleDebug(){
+  Object.keys(zombies).forEach(id => {
+    const g = zombies[id];
+    if (!g.userData._bh) {
+      const bh = new THREE.BoxHelper(g, 0xff0000);
+      scene.add(bh);
+      g.userData._bh = bh;
+    } else {
+      scene.remove(g.userData._bh);
+      delete g.userData._bh;
+    }
+  });
+}
+
+/* ======= safe console log to help debug headless phones ======= */
+console.log('Arquivos esperados (case-sensitive):', FILES);
+console.log('Se algo der errado, abra DevTools / Network no navegador para ver 404s.');
+
+/* ======= inicial incrementLoad fallback (para loading UI) ======= */
+setTimeout(()=> {
+  // Garante que loading desapareça mesmo que algum loader trave (safety)
+  incrementLoad(); incrementLoad(); incrementLoad();
+}, 4000);
+
+</script>
 </body>
 </html>
