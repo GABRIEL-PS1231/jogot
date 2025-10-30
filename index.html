@@ -1,1410 +1,520 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>Zombie Survival 3D — Enhanced</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;700&display=swap" rel="stylesheet">
-<!-- inline minimal favicon (avoids 404) -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Crect width='16' height='16' fill='%23000'/%3E%3C/svg%3E">
-<style>
-  :root { --accent: #ff3b3b; --muted: #bfbfbf; --bg: #020205; }
-  html,body{height:100%;margin:0;font-family:'Chakra Petch',sans-serif;background:linear-gradient(180deg,#08060a 0%, #1b1a1f 100%); color: #e6e6e6;}
-  #game-container{width:100vw;height:100vh;overflow:hidden;position:relative;}
-  .hud{position:fixed;left:16px;top:16px;z-index:30;background:linear-gradient(180deg,rgba(10,10,10,0.6),rgba(10,10,10,0.3));padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);}
-  .hud .bar{height:12px;background:#222;border-radius:8px;overflow:hidden}
-  .hud .bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#ffb7b7);width:100%}
-  .center-hud{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:30;background:rgba(0,0,0,0.45);padding:10px 18px;border-radius:12px;border:1px solid rgba(255,255,255,0.06);}
-  .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(0,0,0,0.7),rgba(0,0,0,0.85));z-index:40}
-  .card{background:linear-gradient(180deg,#0f0f12,#17171b);padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.04);width:min(760px,95%);}
-  #crosshair{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:10px;height:10px;border-radius:50%;z-index:35;mix-blend-mode:screen;pointer-events:none;opacity:0.9}
-  #crosshair::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:2px;height:2px;background:var(--accent);box-shadow:0 0 8px var(--accent)}
-  button.btn{background:var(--accent);color:white;padding:10px 14px;border-radius:8px;border:none;cursor:pointer}
-  .small{font-size:13px;color:var(--muted)}
-  .hidden{display:none!important}
-  #hit-flash{position:fixed;inset:0;background:rgba(255,0,0,0.06);z-index:50;pointer-events:none;opacity:0;transition:opacity 160ms}
-  #ammo { font-weight:700; margin-left:8px; }
-
-  /* --- Conteúdo de mobile-controls.css --- */
-  #mobile-controls {
-    position: fixed;
-    left: 0;
-    bottom: 0;
-    width: 100%;
-    height: 38vh;
-    pointer-events: none;
-    z-index: 10000;
-    font-family: sans-serif;
-  }
-  #mc-left {
-    position: absolute;
-    left: 6%;
-    bottom: 6%;
-    width: 36%;
-    height: 80%;
-    pointer-events: auto;
-    touch-action: none;
-  }
-  #mc-right {
-    position: absolute;
-    right: 6%;
-    bottom: 6%;
-    width: 36%;
-    height: 80%;
-    pointer-events: auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    touch-action: none;
-  }
-  .mc-joy-base {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    max-width: 220px;
-    max-height: 220px;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    background: rgba(0,0,0,0.25);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-  .mc-joy-knob {
-    position: absolute;
-    width: 38%;
-    height: 38%;
-    max-width: 90px;
-    max-height: 90px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.85);
-    transform: translate(-50%, -50%);
-    left: 50%;
-    top: 50%;
-    transition: background 0.08s ease;
-    box-shadow: 0 6px 16px rgba(0,0,0,0.35);
-  }
-  .mc-btn {
-    width: 78px;
-    height: 78px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.12);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 700;
-    font-size: 18px;
-    user-select: none;
-    -webkit-user-select: none;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.35);
-    pointer-events: auto;
-    touch-action: manipulation;
-  }
-  .mc-btn:active {
-    transform: scale(0.98);
-    background: rgba(255,255,255,0.18);
-  }
-  .mc-row {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-  }
-  .mc-label {
-    color: rgba(255,255,255,0.9);
-    font-size: 12px;
-    text-align: center;
-  }
-  /* Controles mobile só aparecem em dispositivos de toque */
-  #mobile-controls {
-      display: none;
-  }
-  @media (hover: none) and (pointer: coarse) {
-    #mobile-controls {
-      display: block;
+  <meta charset="utf-8" />
+  <title>Jogo Zumbi - Versão Melhorada</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    html,body{margin:0;height:100%;overflow:hidden;background:#0b0b0f;color:#ddd;font-family:Inter, Arial;}
+    #container{width:100%;height:100%;position:relative;}
+    #overlayUI{
+      position:absolute;left:12px;bottom:12px;z-index:10;color:#fff;
+      background:linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.45));
+      padding:8px;border-radius:8px;font-size:14px;
+      backdrop-filter: blur(4px);
     }
-    #mobile-fire {
-      display: none !important; /* Esconde o botão antigo se os novos controles estiverem ativos */
-    }
-  }
-</style>
-
-<!-- Import map (keeps imports short and avoids bundler) -->
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
-
+    .btn{background:rgba(255,255,255,0.06);padding:6px 10px;border-radius:6px;margin-right:6px;border:1px solid rgba(255,255,255,0.04);cursor:pointer;color:#fff}
+    #fps{font-size:12px;opacity:0.85}
+    canvas{display:block}
+    /* mobile joystick placeholder */
+    #joystick{position:absolute;left:12px;bottom:80px;width:120px;height:120px;border-radius:50%;z-index:40;touch-action:none}
+    #fireBtn{position:absolute;right:18px;bottom:70px;width:82px;height:82px;border-radius:50%;z-index:40;background:rgba(255,0,0,0.08);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+  </style>
 </head>
 <body>
-<div id="game-container"></div>
-<div id="crosshair"></div>
-<div id="hit-flash"></div>
-
-<div class="hud" id="left-hud">
-  <div style="display:flex;gap:12px;align-items:center;">
-    <div>
-      <div class="small">VIDA</div>
-      <div class="bar" style="width:160px"><i id="health-bar" style="width:100%"></i></div>
-    </div>
-    <div style="min-width:130px">
-      <div class="small">PONTOS</div>
-      <div id="score" style="font-weight:700;font-size:18px">0</div>
-    </div>
-    <div style="min-width:160px">
-      <div class="small">ARMA <span id="weapon-name" style="font-weight:700">Pistola</span></div>
-      <div class="small">MUNIÇÃO: <span id="ammo">12</span>/<span id="mag-cap">12</span></div>
+  <div id="container"></div>
+  <div id="overlayUI">
+    <span id="fps">FPS: --</span>
+    <div style="margin-top:6px">
+      <button id="toggleShadows" class="btn">Sombras: ON</button>
+      <button id="spawnZombieBtn" class="btn">Spawn Zumbi</button>
+      <button id="toggleDebug" class="btn">Debug</button>
     </div>
   </div>
-</div>
 
-<div class="center-hud hidden" id="powerup">DANO DUPLO ATIVO</div>
+  <!-- optional mobile controls -->
+  <div id="joystick" aria-hidden="true"></div>
+  <div id="fireBtn" aria-hidden="true">ATIRAR</div>
 
-<div id="lobby" class="modal">
-  <div class="card">
-    <h1 style="font-size:32px;color:var(--accent);margin:0 0 8px 0">Zombie Survival 3D — Enhanced</h1>
-    <p class="small">Digite seu nome para sobreviver. Skins procedurais, luzes, som e gameplay finalizado.</p>
-    <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;">
-      <input id="name" class="input" placeholder="Seu nome" style="flex:1;padding:10px;border-radius:8px;background:#111;border:1px solid rgba(255,255,255,0.03);color:white" />
-      <button id="start" class="btn">Iniciar Jogo</button>
-    </div>
-  </div>
-</div>
+  <!-- three.js e loaders (non-module builds, mais compatíveis com Pages) -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/loaders/FBXLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/loaders/OBJLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/loaders/MTLLoader.js"></script>
 
-<div id="game-over" class="modal hidden">
-  <div class="card" style="text-align:center;">
-    <h2 style="color:var(--accent);font-size:28px">Você morreu</h2>
-    <p id="final-score" style="font-weight:700;font-size:20px">0</p>
-    <div style="display:flex;gap:10px;margin-top:12px">
-      <button id="restart" class="btn">Jogar Novamente</button>
-      <button id="download" class="btn" style="background:#3b82f6">Baixar ZIP</button>
-    </div>
-    <p class="small" style="margin-top:8px">Gerado localmente: dicas e relatório final disponíveis.</p>
-    <div style="margin-top:10px" id="report" class="small"></div>
-  </div>
-</div>
+  <script>
+  /******************************************************************
+   * CONFIG - ajuste aqui se renomear arquivos no repo (case-sensitive)
+   ******************************************************************/
+  const FILE_GUN_OBJ = 'Gun.obj';
+  const FILE_GUN_MTL = 'Gun.mtl';
+  const FILE_GUN_PNG = 'Gun.png';
+  const FILE_GROUND = 'Sample.png';
+  const FILE_ZOMBIE_IDLE = 'idle.fbx';
+  const FILE_ZOMBIE_RUN  = 'run.fbx';
+  const FILE_ZOMBIE_JUMP = 'jump.fbx';
+  // skins (se tiver várias, adicione os nomes exatos)
+  const ZOMBIE_SKINS = ['Sample.png']; // fallback para Sample.png
+  /******************************************************************/
 
-<script type="module">
-  import * as THREE from "three";
-  import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
-  import { EXRLoader } from "three/addons/loaders/EXRLoader.js";
-  import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
-  import { MTLLoader } from "three/addons/loaders/MTLLoader.js";
-  import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
-  
-  // Optional Firebase hook (keep null by default)
-  const FIREBASE_CONFIG = null;
+  // globals
+  let scene, camera, renderer, clock, mixers = [], activeMixers = [], controlsData = {};
+  let zombieTemplate = null, gunObject = null;
+  const zombies = {}; // id -> group
+  const container = document.getElementById('container');
 
-  //
-  // ==================================================================================
-  // ===== ÁREA DE TEXTURAS E MODELOS (SEU ESPAÇO PARA EDITAR) =====
-  // ==================================================================================
-  
-  // Para adicionar uma textura no chão, cole o NOME DO ARQUIVO que você vai subir.
-  // Ex: 'minha-textura.jpg'
-  // Deixe `null` para usar a cor cinza padrão.
-  const NOME_ARQUIVO_CHAO = null;
-
-  // Para adicionar skins de zumbis, cole os NOMES DOS ARQUIVOS.
-  // Se o array ficar vazio, o jogo usará as skins procedurais (canvas).
-  // Ex: [ 'skin_zumbi_1.png', 'skin_zumbi_2.jpg' ]
-  const NOMES_SKINS_ZUMBIS = [];
-
-  // --- NOVO PLACEHOLDER DE HDRI ---
-  // Para usar um céu realista (HDRI), cole o NOME DO ARQUIVO .exr ou .hdr.
-  // Ex: 'meu_hdri.exr' (Baseado na sua screenshot)
-  const NOME_ARQUIVO_HDRI = null; 
-
-  // --- MODELO DA ARMA ---
-  // NOME DO ARQUIVO .obj da sua arma
-  const NOME_ARQUIVO_ARMA_OBJ = null; // Ex: 'Gun.obj'
-  // NOME DO ARQUIVO .mtl da sua arma (IMPORTANTE: edite este arquivo, veja o guia)
-  const NOME_ARQUIVO_ARMA_MTL = null; // Ex: 'Gun.mtl'
-  
-  // --- MODELO DO ZUMBI ---
-  // NOME DO ARQUIVO .fbx do seu zumbi (modelo estático por enquanto)
-  const NOME_ARQUIVO_ZUMBI_FBX = null; // Ex: 'characterMedium.fbx'
-  
-  // ==================================================================================
-  // ===== FIM DA ÁREA DE TEXTURAS E MODELOS =====
-  // ==================================================================================
-  //
-
-  // DOM
-  const container = document.getElementById('game-container');
-  const lobby = document.getElementById('lobby');
-  const startBtn = document.getElementById('start');
-  const nameInput = document.getElementById('name');
-  const crosshair = document.getElementById('crosshair');
-  const gameOverModal = document.getElementById('game-over');
-  const restartBtn = document.getElementById('restart');
-  const scoreEl = document.getElementById('score');
-  const healthBar = document.getElementById('health-bar');
-  const powerupEl = document.getElementById('powerup');
-  const finalScoreEl = document.getElementById('final-score');
-  const reportEl = document.getElementById('report');
-  const hitFlash = document.getElementById('hit-flash');
-  const mobileFire = document.getElementById('mobile-fire'); // Botão antigo (escondido)
-  const ammoEl = document.getElementById('ammo');
-  const weaponNameEl = document.getElementById('weapon-name');
-  const magCapEl = document.getElementById('mag-cap');
-
-  // three
-  let scene, camera, renderer, clock, controls, pistolModel, meleeModel, skyMesh;
-  let localPlayer = { name: 'Player', health: 100, score: 0, damageMultiplier: 1, isAlive: true, position: new THREE.Vector3(), weapon: 'pistol', ammo: 12, magCap: 12 };
-  let zombies = {};
-  let zombieObjects = {};
-  let gameActive = false;
-  let lastSpawn = 0;
-  let lastAttack = 0;
-  let audioCtx;
-  let gunBuffer, hitBuffer, deathBuffer;
-  let keys = {};
-  let velocity = new THREE.Vector3();
-  let canJump = true;
-  const MAX_ZOMBIES = 45;
-  const isTouchDevice = 'ontouchstart' in window;
-  
-  // Loaders
-  const textureLoader = new THREE.TextureLoader();
-  const exrLoader = new EXRLoader();
-  const mtlLoader = new MTLLoader();
-  const objLoader = new OBJLoader();
-  const fbxLoader = new FBXLoader();
-  
-  let zombieTemplate = null; // Armazena o modelo do zumbi carregado
+  // movement/player state
+  const player = {
+    pos: new THREE.Vector3(0, 1.2, 4),
+    velocity: new THREE.Vector3(),
+    speed: 4.5,
+    onGround: true,
+    yaw: 0
+  };
 
   init();
+  animate();
 
-  function init() {
-    // renderer + scene
-    renderer = new THREE.WebGLRenderer({ antialias:true });
+  function init(){
+    // scene + camera
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x06060a);
+
+    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+    camera.position.set(0, 1.6, 6);
+    camera.lookAt(0,1,0);
+
+    // renderer
+    renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
-    scene = new THREE.Scene();
-
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1200);
-    camera.position.set(0,1.6,0);
-
+    // clock
     clock = new THREE.Clock();
 
-    // --- LUZES E CÉU (NOVA LÓGICA) ---
-    if (NOME_ARQUIVO_HDRI) {
-        exrLoader.load(NOME_ARQUIVO_HDRI, (texture) => {
-            texture.mapping = THREE.EquirectangularReflectionMapping;
-            scene.background = texture;
-            scene.environment = texture; 
-            console.log("HDRI Carregado com sucesso!");
-        }, null, () => {
-            console.error(`Falha ao carregar HDRI: ${NOME_ARQUIVO_HDRI}. Usando modo offline.`);
-            setupOfflineSkyAndLights();
-        });
-        scene.fog = new THREE.FogExp2(0x0c0b0d, 0.0025);
-    } else {
-        setupOfflineSkyAndLights();
-    }
-    // --- FIM LUZES E CÉU ---
+    // LIGHTS - mais visibilidade mas ainda sombria
+    const amb = new THREE.HemisphereLight(0x8888aa, 0x120b14, 0.6);
+    scene.add(amb);
 
-    function setupOfflineSkyAndLights() {
-        scene.fog = new THREE.FogExp2(0x0c0b0d, 0.0025);
-        const hemi = new THREE.HemisphereLight(0x8a7f7a, 0x101014, 0.8);
-        scene.add(hemi);
-        const dir = new THREE.DirectionalLight(0xffcc88, 1.0);
-        dir.position.set(-30,40,20);
-        dir.castShadow = true;
-        dir.shadow.camera.left = -80; dir.shadow.camera.right = 80; dir.shadow.camera.top = 80; dir.shadow.camera.bottom = -80;
-        dir.shadow.mapSize.set(1024,1024);
-        scene.add(dir);
-        createSky(); // Cria o céu procedural
-    }
+    const dir = new THREE.DirectionalLight(0xfff3d8, 1.0);
+    dir.position.set(6, 12, 6);
+    dir.castShadow = true;
+    dir.shadow.mapSize.set(2048,2048);
+    dir.shadow.camera.left = -20; dir.shadow.camera.right = 20;
+    dir.shadow.camera.top = 20; dir.shadow.camera.bottom = -20;
+    dir.shadow.camera.near = 0.5; dir.shadow.camera.far = 60;
+    scene.add(dir);
 
+    // rim light pra destacar modelos
+    const rim = new THREE.DirectionalLight(0x99bbff, 0.25);
+    rim.position.set(-6, 6, -8);
+    scene.add(rim);
 
-    // ground
-    let groundMat;
-    if (NOME_ARQUIVO_CHAO) {
-        try {
-            const groundTexture = textureLoader.load(
-                NOME_ARQUIVO_CHAO,
-                (texture) => {
-                    texture.wrapS = THREE.RepeatWrapping;
-                    texture.wrapT = THREE.RepeatWrapping;
-                    texture.repeat.set(100, 100); 
-                    texture.needsUpdate = true;
-                },
-                null, 
-                () => { 
-                    console.error(`Falha ao carregar textura do chão: ${NOME_ARQUIVO_CHAO}. Usando cor padrão.`);
-                    ground.material = new THREE.MeshStandardMaterial({color:0x222222, roughness:0.7, metalness:0.05});
-                }
-            );
-            groundMat = new THREE.MeshStandardMaterial({ map: groundTexture, roughness: 0.8, metalness: 0.1 });
-        } catch (e) {
-            console.warn("Erro ao carregar textura. Usando cor padrao.", e);
-            groundMat = new THREE.MeshStandardMaterial({color:0x222222, roughness:0.7, metalness:0.05});
-        }
-    } else {
-        groundMat = new THREE.MeshStandardMaterial({color:0x222222, roughness:0.7, metalness:0.05});
-    }
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000,2000), groundMat);
-    ground.rotation.x = -Math.PI/2;
-    ground.receiveShadow = true;
-    scene.add(ground);
+    // floor
+    const floorGeo = new THREE.PlaneGeometry(300,300);
+    const loader = new THREE.TextureLoader();
+    loader.setCrossOrigin('');
+    loader.load(FILE_GROUND, tex => {
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(80,80);
+      const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 });
+      const floor = new THREE.Mesh(floorGeo, mat);
+      floor.rotation.x = -Math.PI/2;
+      floor.receiveShadow = true;
+      scene.add(floor);
+      console.log('Chão carregado:', FILE_GROUND);
+    }, undefined, err => {
+      console.warn('Falha ao carregar Sample.png (fundo). Verifique nome/path.', err);
+      // fallback floor
+      const fallback = new THREE.Mesh(floorGeo, new THREE.MeshStandardMaterial({color:0x131316}));
+      fallback.rotation.x = -Math.PI/2;
+      fallback.receiveShadow = true;
+      scene.add(fallback);
+    });
 
-    // environment (lampposts/crates)
-    createEnvironment(scene, 20);
+    // carregadores
+    fbxLoader = new THREE.FBXLoader();
+    objLoader = new THREE.OBJLoader();
+    mtlLoader = new THREE.MTLLoader();
 
-    // environment scatter (extra objects)
-    for (let i=0;i<48;i++){
-      const box = new THREE.Mesh(new THREE.BoxGeometry(1+Math.random()*5,0.5+Math.random()*1.6,1+Math.random()*5), new THREE.MeshStandardMaterial({color:0x2b2b2b, roughness:0.85}));
-      box.position.set((Math.random()-0.5)*400, 0.25, (Math.random()-0.5)*400);
-      box.castShadow = true; box.receiveShadow = true;
-      scene.add(box);
-    }
+    // carrega arma
+    loadGun();
 
-    // controls
-    controls = new PointerLockControls(camera, renderer.domElement);
-    scene.add(controls.getObject());
-
-    // --- Player weapons ---
-    pistolModel = createPistolModel(); // Cria o modelo placeholder
-    camera.add(pistolModel);
-    pistolModel.position.set(0.25,-0.3,-0.6);
-    loadGunModel(); // Tenta carregar o modelo custom
-
-    meleeModel = createMeleeModel(); // Katana
-    camera.add(meleeModel);
-    meleeModel.position.set(0.25, -0.3, -0.7);
-    meleeModel.rotation.set(Math.PI / 4, -Math.PI / 8, 0);
-    meleeModel.visible = false; 
-    // --- Fim Player weapons ---
-
-    // Carrega o template do zumbi
+    // carrega modelo zumbi e animações
     loadZombieTemplate();
 
-    // pointer lock interactions and audio resume
-    document.addEventListener('click', (ev) => {
-      if (!audioCtx) {
-        try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ audioCtx = null; }
-        if (audioCtx) { gunBuffer = makeGunShotBuffer(); hitBuffer = makeHitBuffer(); deathBuffer = makeDeathBuffer(); }
-      } else if (audioCtx.state === 'suspended') {
-        audioCtx.resume().catch(()=>{});
-      }
-      if (!gameActive) return;
-      if (!isTouchDevice && !controls.isLocked) controls.lock();
-    });
+    // spawn inicial
+    for (let i=0;i<2;i++) spawnZombie();
 
-    // input and UI
-    startBtn.addEventListener('click', startGame);
-    restartBtn.addEventListener('click', restartGame);
-    window.addEventListener('resize', onResize);
+    // HUD buttons
+    document.getElementById('spawnZombieBtn').addEventListener('click', ()=> spawnZombie());
+    document.getElementById('toggleShadows').addEventListener('click', toggleShadows);
+    document.getElementById('toggleDebug').addEventListener('click', toggleDebug);
+
+    // mobile joystick simple implementation
+    setupSimpleJoystick();
+
+    // eventos resize e teclado
+    window.addEventListener('resize', onWindowResize);
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
-    window.addEventListener('mousedown', onMouseDown);
-    
-    // O botão de fogo antigo (mobileFire) não é mais necessário,
-    // pois o novo script `mobile-controls.js` (embutido no final)
-    // cria e gerencia o botão 'mc-fire'.
-    // mobileFire.addEventListener('touchstart', (e)=>{ e.preventDefault(); onMobileFire(); }, {passive:false});
-    // mobileFire.addEventListener('mousedown', onMobileFire);
 
-    // initial audio context creation allowed on init (kept lazy)
-    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ audioCtx = null; }
-    if (audioCtx) { gunBuffer = makeGunShotBuffer(); hitBuffer = makeHitBuffer(); deathBuffer = makeDeathBuffer(); }
-
-    // create sample zombie skins pool
-    window.__Z_SKIN_POOL = [];
-    for (let i=0;i<10;i++) window.__Z_SKIN_POOL.push(generateZombieSkin(i));
-
-    animate();
-    updateHUD();
-    checkMobile();
+    // debug fps
+    setInterval(()=> {
+      const el = document.getElementById('fps');
+      if (!el) return;
+      el.innerText = `FPS: ${Math.round(1/Math.max(0.0001, clock.getDelta()))}`;
+    },1000);
   }
 
-  // create a nicer procedural sky texture and sphere
-  function createSky() {
-    const size = 1024;
-    const cvs = document.createElement('canvas'); cvs.width = cvs.height = size;
-    const ctx = cvs.getContext('2d');
-    const g = ctx.createLinearGradient(0,0,0,size);
-    g.addColorStop(0, '#061226');
-    g.addColorStop(0.5, '#0b1220');
-    g.addColorStop(1, '#12131a');
-    ctx.fillStyle = g; ctx.fillRect(0,0,size,size);
-    ctx.globalAlpha = 0.06;
-    for (let i=0;i<80;i++){
-      ctx.fillStyle = `rgba(255,255,255,${0.02+Math.random()*0.06})`;
-      ctx.beginPath();
-      ctx.ellipse(Math.random()*size, Math.random()*size*0.7, 100+Math.random()*250, 30+Math.random()*80, Math.random()*Math.PI, 0, Math.PI*2);
-      ctx.fill();
-    }
-    const tex = new THREE.CanvasTexture(cvs);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(4,2);
-    const mat = new THREE.MeshBasicMaterial({map: tex, side: THREE.BackSide});
-    const sphere = new THREE.Mesh(new THREE.SphereGeometry(900, 32, 32), mat);
-    sphere.rotation.x = Math.PI;
-    scene.add(sphere);
-    skyMesh = sphere;
-  }
+  /***********************
+   * LOADERS & ASSETS
+   ***********************/
+  let fbxLoader, objLoader, mtlLoader;
 
-  // add lampposts and point lights
-  function createEnvironment(scene, count = 20) {
-    for (let i=0;i<count;i++){
-      const x = (Math.random()-0.5)*400;
-      const z = (Math.random()-0.5)*400;
-      const post = new THREE.Group();
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,4,8), new THREE.MeshStandardMaterial({color:0x222222}));
-      pole.position.y = 2;
-      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), new THREE.MeshStandardMaterial({emissive:0xffe6b3, color:0x443322}));
-      lamp.position.y = 4.2;
-      post.add(pole, lamp);
-      post.position.set(x,0,z);
-      scene.add(post);
-      const light = new THREE.PointLight(0xffddbb, 0.9, 14, 2);
-      light.position.set(x,4.2,z);
-      scene.add(light);
-    }
-  }
-
-  function checkMobile() {
-    if (isTouchDevice) {
-      // mobileFire.style.display = 'block'; // Botão antigo
-    }
-  }
-
-  function startGame() {
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
-    
-    // --- Lógica de Tela Cheia ---
-    if (document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen().catch((err) => {
-            console.warn(`Erro ao tentar entrar em tela cheia: ${err.message}`);
+  function loadGun(){
+    // MTL -> OBJ -> apply texture fix
+    mtlLoader.load(FILE_GUN_MTL, materials => {
+      materials.preload();
+      objLoader.setMaterials(materials);
+      objLoader.load(FILE_GUN_OBJ, obj => {
+        gunObject = obj;
+        gunObject.traverse(c => {
+          if (c.isMesh) {
+            c.castShadow = true;
+            c.receiveShadow = false;
+            // tenta forçar textura caso MTL tenha referência pro Gun.png com nome diferente
+            if (!c.material.map) {
+              const tloader = new THREE.TextureLoader();
+              tloader.load(FILE_GUN_PNG, tex => {
+                c.material.map = tex;
+                c.material.needsUpdate = true;
+                console.log('Aplicada textura da arma:', FILE_GUN_PNG);
+              }, undefined, err => {
+                console.warn('Falha ao carregar textura da arma:', FILE_GUN_PNG, err);
+              });
+            }
+          }
         });
-    }
-    // --- Fim Tela Cheia ---
-
-    localPlayer.name = nameInput.value.trim() || 'Sobrevivente';
-    lobby.classList.add('hidden');
-    gameActive = true;
-    localPlayer.health = 100; localPlayer.score = 0; localPlayer.isAlive = true;
-    localPlayer.weapon = 'pistol'; localPlayer.ammo = localPlayer.magCap = 12;
-    scoreEl.textContent = '0'; healthBar.style.width = '100%';
-    crosshair.style.display = 'block';
-    
-    if (!isTouchDevice) {
-        try { controls.lock(); } catch(e){}
-    }
-    
-    lastSpawn = Date.now();
-  }
-
-  function restartGame() {
-    gameOverModal.classList.add('hidden');
-    // cleanup zombies properly
-    Object.keys(zombieObjects).forEach(id => {
-      const obj = zombieObjects[id];
-      if (obj) {
-        obj.traverse(m => {
-          if (m.geometry) m.geometry.dispose();
-          if (m.material) { if (Array.isArray(m.material)) m.material.forEach(mt=>mt.dispose()); else m.material.dispose(); }
-        });
-        scene.remove(obj);
-      }
-      delete zombieObjects[id]; delete zombies[id];
+        gunObject.scale.set(0.7,0.7,0.7);
+        gunObject.position.set(0.55, -0.4, -0.6); // posicionamento relativo ao player
+        camera.add(gunObject);
+        scene.add(camera); // garantir que camera esteja em cena
+        console.log('Arma carregada:', FILE_GUN_OBJ, FILE_GUN_MTL);
+      }, undefined, err => {
+        console.error('Falha ao carregar OBJ da arma:', FILE_GUN_OBJ, err);
+      });
+    }, undefined, err => {
+      console.warn('Falha ao carregar MTL:', FILE_GUN_MTL, err);
+      // tenta carregar apenas obj sem mtl
+      objLoader.load(FILE_GUN_OBJ, obj => {
+        gunObject = obj;
+        gunObject.traverse(c => { if (c.isMesh) c.castShadow = true; });
+        gunObject.scale.set(0.7,0.7,0.7);
+        camera.add(gunObject);
+        console.log('Arma carregada sem MTL:', FILE_GUN_OBJ);
+      }, undefined, errobj => {
+        console.error('Falha ao carregar OBJ (fallback):', FILE_GUN_OBJ, errobj);
+      });
     });
-    startGame();
   }
 
-  function onResize() {
+  // carrega modelo base do zumbi + animações separadas (idle/run/jump)
+  function loadZombieTemplate(){
+    // carrega um FBX base (idle) e reúne as animações em userData.animations
+    fbxLoader.load(FILE_ZOMBIE_IDLE, base => {
+      base.traverse(c => { if (c.isMesh) { c.castShadow=true; c.receiveShadow=true; } });
+      base.scale.set(0.008,0.008,0.008);
+      zombieTemplate = base;
+      zombieTemplate.userData = zombieTemplate.userData || {};
+      zombieTemplate.userData.animations = zombieTemplate.animations ? zombie.animationsClone = zombieTemplate.animations.slice() : [];
+      console.log('Template base do zumbi carregado (idle):', FILE_ZOMBIE_IDLE);
+    }, undefined, err => {
+      console.warn('Não carregou idle.fbx — zumbi base faltando?', err);
+      zombieTemplate = new THREE.Group(); // fallback
+    });
+
+    // tentamos carregar animacoes separadas e concatenar
+    const animFiles = [FILE_ZOMBIE_IDLE, FILE_ZOMBIE_RUN, FILE_ZOMBIE_JUMP];
+    animFiles.forEach(name => {
+      fbxLoader.load(name, animObj => {
+        if (!zombieTemplate) zombieTemplate = new THREE.Group();
+        zombieTemplate.userData = zombieTemplate.userData || {};
+        zombieTemplate.userData.animations = zombieTemplate.userData.animations || [];
+        if (animObj.animations && animObj.animations.length){
+          animObj.animations.forEach(cl => zombieTemplate.userData.animations.push(cl));
+          console.log('Animação adicionada do arquivo:', name);
+        } else {
+          console.warn('Arquivo FBX sem animação:', name);
+        }
+      }, undefined, err => {
+        // não existindo, apenas log
+        console.warn('Falha ao carregar animação FBX (talv. não existe):', name, err);
+      });
+    });
+
+    // tenta pré-carregar skins (texturas)
+    const tloader = new THREE.TextureLoader();
+    ZOMBIE_SKINS.forEach(s => {
+      tloader.load(s, tex => {
+        console.log('Skin carregada:', s);
+      }, undefined, err => {
+        console.warn('Falha ao carregar skin:', s, err);
+      });
+    });
+  }
+
+  /***********************
+   * SPAWN ZOMBIE
+   ***********************/
+  let zombieIdCounter = 0;
+  function spawnZombie(pos){
+    // cria grupo, instancia visual (clonando template) e adiciona mixer com clip aleatório
+    const id = 'z'+(++zombieIdCounter);
+    const group = new THREE.Group();
+    group.position.copy(pos || new THREE.Vector3((Math.random()-0.5)*10, 0, -6 - Math.random()*6));
+    group.rotation.y = Math.random()*Math.PI*2;
+    group.scale.set(1,1,1);
+
+    // modelo visual: clone do template (se existir) ou box fallback
+    if (zombieTemplate && zombieTemplate.children && zombieTemplate.children.length){
+      const clone = cloneFBX(zombieTemplate);
+      group.add(clone);
+    } else {
+      const geo = new THREE.BoxGeometry(0.6,1.6,0.6);
+      const mat = new THREE.MeshStandardMaterial({color:0x5b6b4d});
+      const m = new THREE.Mesh(geo, mat);
+      m.castShadow = true; m.receiveShadow = true;
+      m.position.y = 0.8;
+      group.add(m);
+    }
+
+    // adiciona collider simples
+    group.userData = {
+      id,
+      speed: 1 + Math.random()*0.6,
+      hp: 10,
+      mixer: null
+    };
+
+    // animação: se template tiver clips, cria mixer e play
+    if (zombieTemplate && zombieTemplate.userData && Array.isArray(zombieTemplate.userData.animations) && zombieTemplate.userData.animations.length){
+      try {
+        const mixer = new THREE.AnimationMixer(group);
+        const clips = zombieTemplate.userData.animations;
+        const clip = clips[Math.floor(Math.random()*clips.length)];
+        const action = mixer.clipAction(clip);
+        action.timeScale = 1 + (Math.random()-0.5)*0.2;
+        action.play();
+        group.userData.mixer = mixer;
+        activeMixers.push(mixer);
+      } catch(e){
+        console.warn('Erro ao aplicar animação ao zumbi', e);
+      }
+    }
+
+    scene.add(group);
+    zombies[id] = group;
+    console.log('Zumbi spawnado:', id);
+    return id;
+  }
+
+  // util: clona objeto FBX (trivial, deep clone by scene graph)
+  function cloneFBX(source){
+    const clone = source.clone(true);
+    // clone animations podem estar em userData; mas AnimationMixer será feito por spawnZombie
+    return clone;
+  }
+
+  /***********************
+   * GAME LOOP
+   ***********************/
+  const tempVec = new THREE.Vector3();
+  function animate(){
+    requestAnimationFrame(animate);
+    const dt = Math.min(0.05, clock.getDelta());
+
+    // update mixers
+    for (let i = activeMixers.length-1; i>=0; i--){
+      const m = activeMixers[i];
+      if (!m) { activeMixers.splice(i,1); continue; }
+      m.update(dt);
+    }
+
+    updatePlayer(dt);
+    updateZombies(dt);
+
+    renderer.render(scene, camera);
+  }
+
+  function updatePlayer(dt){
+    // input -> desired velocity
+    const forwardVec = new THREE.Vector3();
+    camera.getWorldDirection(forwardVec);
+    forwardVec.y = 0; forwardVec.normalize();
+
+    // compute right vector (CORREÇÃO: forward x up, não up x forward) -> evita joystick invertido
+    const up = new THREE.Vector3(0,1,0);
+    const rightVec = new THREE.Vector3().crossVectors(forwardVec, up).normalize();
+
+    const move = new THREE.Vector3();
+    if (controlsData.forward) move.add(forwardVec);
+    if (controlsData.backward) move.add(forwardVec.clone().negate());
+    if (controlsData.left) move.add(rightVec.clone().negate());
+    if (controlsData.right) move.add(rightVec);
+
+    if (move.lengthSq()>0.0001) {
+      move.normalize();
+      // smoothing interpolation for nicer movement
+      player.velocity.lerp(move.multiplyScalar(player.speed), 0.2);
+    } else {
+      player.velocity.lerp(new THREE.Vector3(0,0,0), 0.18);
+    }
+
+    // gravity + vertical
+    if (!player.onGround) player.velocity.y -= 9.8 * dt;
+
+    // move player
+    player.pos.addScaledVector(player.velocity, dt);
+    // simple ground collision
+    if (player.pos.y < 1.2) { player.pos.y = 1.2; player.onGround = true; player.velocity.y = 0; }
+
+    // set camera relative to player
+    camera.position.lerp(new THREE.Vector3(player.pos.x, player.pos.y+0.4, player.pos.z + 0.0), 0.12);
+    camera.lookAt(player.pos.x + forwardVec.x*4, player.pos.y+0.4, player.pos.z+forwardVec.z*4);
+  }
+
+  function updateZombies(dt){
+    // simples AI: andar em direção ao jogador
+    Object.keys(zombies).forEach(id => {
+      const g = zombies[id];
+      if (!g) return;
+      tempVec.subVectors(new THREE.Vector3(player.pos.x,0,player.pos.z), new THREE.Vector3(g.position.x,0,g.position.z));
+      const dist = tempVec.length();
+      if (dist > 0.5) {
+        tempVec.normalize();
+        g.position.addScaledVector(tempVec, (g.userData.speed || 1) * dt);
+        // face player
+        g.lookAt(player.pos.x, g.position.y, player.pos.z);
+      } else {
+        // alcance — diminui HP do player (não implementado full)
+        // aqui podemos adicionar som ou ataque
+      }
+    });
+  }
+
+  /***********************
+   * INPUT (teclado + mobile joystick)
+   ***********************/
+  function onKeyDown(e){
+    if (e.code === 'KeyW') controlsData.forward = true;
+    if (e.code === 'KeyS') controlsData.backward = true;
+    if (e.code === 'KeyA') controlsData.left = true;
+    if (e.code === 'KeyD') controlsData.right = true;
+    if (e.code === 'Space' && player.onGround) { player.velocity.y = 5; player.onGround = false; }
+  }
+  function onKeyUp(e){
+    if (e.code === 'KeyW') controlsData.forward = false;
+    if (e.code === 'KeyS') controlsData.backward = false;
+    if (e.code === 'KeyA') controlsData.left = false;
+    if (e.code === 'KeyD') controlsData.right = false;
+  }
+
+  // Simple touch joystick for mobile (lightweight)
+  function setupSimpleJoystick(){
+    const joy = document.getElementById('joystick');
+    const fire = document.getElementById('fireBtn');
+    if (!joy || !fire) return;
+
+    let dragging = false;
+    let origin = null;
+
+    joy.addEventListener('pointerdown', (ev) => {
+      joy.setPointerCapture(ev.pointerId);
+      dragging = true;
+      origin = {x: ev.clientX, y: ev.clientY};
+      joy.style.background = 'rgba(255,255,255,0.03)';
+    });
+    joy.addEventListener('pointermove', (ev) => {
+      if (!dragging) return;
+      const dx = ev.clientX - origin.x;
+      const dy = ev.clientY - origin.y;
+      // map dx/dy -> directional booleans
+      controlsData.right = dx > 20;
+      controlsData.left = dx < -20;
+      controlsData.forward = dy < -20;
+      controlsData.backward = dy > 20;
+    });
+    joy.addEventListener('pointerup', (ev) => {
+      dragging = false;
+      controlsData.forward = controlsData.backward = controlsData.left = controlsData.right = false;
+      joy.style.background = '';
+    });
+
+    // fire button quick handler
+    fire.addEventListener('pointerdown', ()=> {
+      // efeito de tiro simples: pequeno flash e soma de pontos ou spawn bullet
+      spawnMuzzleFlash();
+    });
+  }
+
+  // spawn visual simple (muzzle flash in front of camera)
+  function spawnMuzzleFlash(){
+    const sGeo = new THREE.PlaneGeometry(0.4,0.4);
+    const mat = new THREE.MeshBasicMaterial({color:0xffefce,transparent:true,opacity:0.85,side:THREE.DoubleSide});
+    const flash = new THREE.Mesh(sGeo, mat);
+    flash.position.copy(camera.position).add(new THREE.Vector3(0, -0.2, -0.8).applyQuaternion(camera.quaternion));
+    flash.quaternion.copy(camera.quaternion);
+    scene.add(flash);
+    setTimeout(()=> scene.remove(flash), 80);
+  }
+
+  /***********************
+   * UTIL / DEBUG
+   ***********************/
+  function toggleShadows(){
+    renderer.shadowMap.enabled = !renderer.shadowMap.enabled;
+    document.getElementById('toggleShadows').innerText = 'Sombras: ' + (renderer.shadowMap.enabled ? 'ON' : 'OFF');
+  }
+  function toggleDebug(){
+    // exemplo simples: adiciona/removes caixas de debug sobre zumbis
+    Object.values(zombies).forEach(g => {
+      if (!g.userData.boxHelper) {
+        const box = new THREE.BoxHelper(g, 0xff0000);
+        scene.add(box);
+        g.userData.boxHelper = box;
+      } else {
+        scene.remove(g.userData.boxHelper);
+        delete g.userData.boxHelper;
+      }
+    });
+  }
+
+  function onWindowResize(){
     camera.aspect = window.innerWidth/window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
   }
 
-  function animate() {
-    requestAnimationFrame(animate);
-    const dt = Math.min(0.05, clock.getDelta());
-    if (gameActive) {
-      applyMovement(dt);
-      hostTick(dt);
-      updateZombies(dt);
-      handleCollisions();
-      updateUI();
-
-      // weapon recoil recovery (smooth)
-      if (pistolModel) {
-        pistolModel.rotation.x += (0 - pistolModel.rotation.x) * Math.min(1, dt * 6);
-      }
-      if (meleeModel) {
-          // Animação de "swing" (placeholder)
-          meleeModel.rotation.z += (0 - meleeModel.rotation.z) * Math.min(1, dt * 8);
-      }
+  // remover zumbi (dispose mixer)
+  function removeZombie(id){
+    const g = zombies[id];
+    if (!g) return;
+    if (g.userData.mixer){
+      const idx = activeMixers.indexOf(g.userData.mixer);
+      if (idx !== -1) activeMixers.splice(idx,1);
+      try { g.userData.mixer.stopAllAction(); } catch(e){}
+      delete g.userData.mixer;
     }
-    renderer.render(scene, camera);
+    scene.remove(g);
+    delete zombies[id];
   }
 
-  function hostTick(dt) {
-    if (Date.now() - lastSpawn > Math.max(800, 2400 - localPlayer.score/15) && Object.keys(zombieObjects).length < MAX_ZOMBIES) {
-      lastSpawn = Date.now();
-      spawnZombie();
-    }
-    // occasional powerup / ammo spawn
-    if (Math.random() < 0.0009) {
-      if (Math.random() < 0.6) spawnAmmoPackNearPlayer(); else spawnPowerup();
-    }
-  }
-
-  function spawnZombie() {
-    const id = 'z_' + Date.now() + '_' + Math.floor(Math.random()*1000);
-    const angle = Math.random() * Math.PI * 2;
-    const r = 60 + Math.random()*120;
-    const x = Math.cos(angle)*r + (Math.random()-0.5)*10;
-    const z = Math.sin(angle)*r + (Math.random()-0.5)*10;
-    
-    let group;
-    let head, torso; // Para fallback de skin
-
-    // --- Lógica de Modelo de Zumbi ---
-    if (zombieTemplate) {
-        group = zombieTemplate.clone();
-    } else {
-        // Fallback: Usa o zumbi procedural
-        let bodyMat;
-        if (NOMES_SKINS_ZUMBIS.length > 0) {
-            const skinUrl = NOMES_SKINS_ZUMBIS[Math.floor(Math.random() * NOMES_SKINS_ZUMBIS.length)];
-            const skinTexture = textureLoader.load(skinUrl, null, null, () => {
-                 console.error(`Falha ao carregar skin: ${skinUrl}. Usando procedural.`);
-                 const fallbackSkin = window.__Z_SKIN_POOL[Math.floor(Math.random()*window.__Z_SKIN_POOL.length)];
-                 if (torso) torso.material = new THREE.MeshStandardMaterial({map: fallbackSkin, roughness:0.9, metalness:0.0});
-                 if (head) head.material = new THREE.MeshStandardMaterial({map: fallbackSkin, roughness:0.9, metalness:0.0});
-            });
-            bodyMat = new THREE.MeshStandardMaterial({ map: skinTexture, roughness: 0.9, metalness: 0.0 });
-        } else {
-            const skinTexture = window.__Z_SKIN_POOL[Math.floor(Math.random()*window.__Z_SKIN_POOL.length)];
-            bodyMat = new THREE.MeshStandardMaterial({map: skinTexture, roughness:0.9, metalness:0.0});
-        }
-        
-        const legsMat = new THREE.MeshStandardMaterial({color:0x1d1d1d, roughness:0.95});
-        group = new THREE.Group();
-        const legs = new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.45,0.7,8), legsMat);
-        legs.position.y = 0.35;
-        torso = new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.45,0.9,8), bodyMat);
-        torso.position.y = 1.0; torso.name = 'body';
-        head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 8), bodyMat);
-        head.position.y = 1.6;
-        group.add(legs, torso, head);
-    }
-    // --- Fim da Lógica de Modelo ---
-
-    group.position.set(x,0,z);
-    
-    const typeRoll = Math.random();
-    let baseSpeed = 0.6, health=90, damage=8;
-    if (typeRoll < 0.6) { baseSpeed = 0.6 + Math.random()*0.25; health = 80 + Math.random()*40; damage = 8 + Math.floor(Math.random()*8); }
-    else if (typeRoll < 0.9) { baseSpeed = 1.2 + Math.random()*0.9; health = 45 + Math.random()*30; damage = 6 + Math.floor(Math.random()*6); }
-    else { baseSpeed = 0.28 + Math.random()*0.22; health = 220 + Math.random()*120; damage = 22 + Math.floor(Math.random()*18); }
-    group.userData = { id, health, speed: baseSpeed, damage, _offset: Math.random()*10, _lastHit: 0 };
-    group.traverse((m)=>{ m.castShadow = true; m.receiveShadow = true; });
-    scene.add(group);
-    zombieObjects[id] = group;
-    zombies[id] = group.userData;
-  }
-
-  function updateZombies(dt) {
-    const pPos = new THREE.Vector3();
-    controls.getObject().getWorldPosition(pPos);
-    localPlayer.position.copy(pPos);
-    Object.entries(zombieObjects).forEach(([id, obj]) => {
-      if (!obj) return;
-      const data = obj.userData;
-      const distToPlayer = obj.position.distanceTo(pPos);
-      if (distToPlayer > 900) {
-        // dispose resources to avoid leaks
-        obj.traverse(m => {
-          if (m.geometry) m.geometry.dispose();
-          if (m.material) { if (Array.isArray(m.material)) m.material.forEach(mt=>mt.dispose()); else m.material.dispose(); }
-        });
-        scene.remove(obj);
-        delete zombieObjects[id]; delete zombies[id];
-        return;
-      }
-      const target = new THREE.Vector3(pPos.x, obj.position.y, pPos.z);
-      const dir = target.clone().sub(obj.position);
-      const dist = dir.length();
-      if (dist > 0.01) dir.normalize();
-      const speed = data.speed * (1 + localPlayer.score/1500);
-      obj.position.addScaledVector(dir, speed * dt);
-      const desiredAngle = Math.atan2(pPos.x - obj.position.x, pPos.z - obj.position.z);
-      obj.rotation.y += (desiredAngle - obj.rotation.y) * 0.08;
-      
-      // Animação de balanço apenas se NÃO for um modelo FBX (que teria sua própria animação)
-      if (!zombieTemplate) {
-          obj.position.y = Math.abs(Math.sin(performance.now()/300 + (obj.userData._offset||0))*0.04);
-      }
-      
-      if (dist < 1.4 && gameActive) {
-        if (!obj.userData._lastHit || Date.now() - obj.userData._lastHit > 1000) {
-          obj.userData._lastHit = Date.now();
-          localPlayer.health -= obj.userData.damage;
-          triggerHitFlash();
-          if (localPlayer.health <= 0) {
-            localPlayer.health = 0;
-            playerDied();
-          }
-        }
-      }
-    });
-  }
-
-  function handleCollisions() {}
-
-  function onMouseDown(e) {
-    // SÓ atira no PC se a mira estiver travada
-    if (!gameActive || (e.button === 0 && !isTouchDevice && !controls.isLocked)) return;
-    if (e.button === 0) shoot();
-  }
-
-  function onMobileFire() {
-    if (!gameActive) return;
-    shoot();
-  }
-
-  function onKeyDown(e) {
-    if (e.code === 'KeyQ') switchWeapon();
-    if (e.code === 'KeyE') interactChest();
-    if (e.code === 'KeyR') reload();
-    keys[e.code] = true;
-  }
-  function onKeyUp(e) { keys[e.code] = false; }
-
-  function applyMovement(dt) {
-    const speedWalk = 6;
-    const speedRun = 9;
-    
-    // --- CORREÇÃO DE MOVIMENTO ---
-    // W (frente) deve ser Z negativo, S (trás) deve ser Z positivo.
-    const forward = (keys['KeyW'] ? -1 : 0) + (keys['KeyS'] ? 1 : 0);
-    // A (esquerda) deve ser X negativo, D (direita) deve ser X positivo.
-    const side = (keys['KeyA'] ? -1 : 0) + (keys['KeyD'] ? 1 : 0);
-    // --- FIM DA CORREÇÃO ---
-
-    const isRunning = keys['ShiftLeft'] || keys['ShiftRight'];
-    const speed = isRunning ? speedRun : speedWalk;
-
-    // normalized direction
-    const direction = new THREE.Vector3(side, 0, forward);
-    if (direction.length() > 0) direction.normalize();
-
-    const velocityX = direction.x * speed * dt;
-    const velocityZ = direction.z * speed * dt;
-    
-    // PC usa translateX/Z (relativo à câmera)
-    if (!isTouchDevice) {
-        controls.getObject().translateX(velocityX);
-        controls.getObject().translateZ(velocityZ);
-    } else {
-        // Mobile usa vetores globais (para o joystick funcionar com a câmera)
-        const forwardVec = new THREE.Vector3();
-        const rightVec = new THREE.Vector3();
-        camera.getWorldDirection(forwardVec);
-        forwardVec.y = 0;
-        forwardVec.normalize();
-        rightVec.crossVectors(camera.up, forwardVec);
-        
-        const moveVector = new THREE.Vector3();
-        // A lógica do joystick já mapeia W/A/S/D corretamente
-        // W = -1 (forward), S = +1 (back)
-        // A = -1 (left), D = +1 (right)
-        moveVector.addScaledVector(forwardVec, velocityZ); // W/S
-        moveVector.addScaledVector(rightVec, velocityX); // A/D
-        
-        controls.getObject().position.add(moveVector);
-    }
-
-    // gravity
-    velocity.y -= 9.8 * dt;
-    controls.getObject().position.y += velocity.y * dt;
-    if (controls.getObject().position.y < 1.6) {
-      velocity.y = 0;
-      controls.getObject().position.y = 1.6;
-      canJump = true;
-    }
-    // CORREÇÃO: Mapeado para 'Space' (PC) ou 'MobileJump' (tecla custom dos controles mobile)
-    if ((keys['Space'] || keys['MobileJump']) && canJump) {
-      velocity.y = 5; canJump = false;
-      keys['MobileJump'] = false; // Reseta o pulo mobile
-    }
-  }
-
-  // SHOOT: pistol recoil applied to pistolModel; fallback to melee when no ammo
-  function shoot() {
-    const now = performance.now();
-    if (now - lastAttack < 120) return;
-    lastAttack = now;
-
-    // if pistol and no ammo -> auto-melee
-    if (localPlayer.weapon === 'pistol' && localPlayer.ammo <= 0) {
-      switchWeapon(); // Troca para melee
-      meleeAttack();
-      return;
-    }
-
-    if (localPlayer.weapon === 'pistol') {
-      localPlayer.ammo--;
-      updateHUD();
-      if (audioCtx && gunBuffer) playBuffer(gunBuffer);
-
-      // recoil on weapon (no camera rotation)
-      if (pistolModel) {
-        pistolModel.rotation.x = Math.max(pistolModel.rotation.x - 0.15, -0.5);
-      }
-
-      const ray = new THREE.Raycaster();
-      ray.setFromCamera({x:0,y:0}, camera);
-      const allParts = [];
-      Object.values(zombieObjects).forEach(z => z.traverse(c => { if(c.isMesh) allParts.push(c); }));
-      const hits = ray.intersectObjects(allParts, false);
-      
-      if (hits.length) {
-        const hit = hits[0];
-        let parent = hit.object;
-        // Sobe na hierarquia até encontrar o userData com ID
-        while (parent && !parent.userData.id) {
-            parent = parent.parent;
-        }
-        
-        if (parent && parent.userData.id) {
-          const zid = parent.userData.id;
-          damageZombie(zid, 35);
-          flashCrosshair();
-        }
-        if (audioCtx && hitBuffer) playBuffer(hitBuffer);
-      }
-    } else {
-      meleeAttack();
-    }
-  }
-
-  function meleeAttack() {
-    if (meleeModel) {
-        meleeModel.rotation.z = -Math.PI / 2; // Gira rápido
-    }
-    const pPos = new THREE.Vector3();
-    controls.getObject().getWorldPosition(pPos);
-    let nearest = null; let nd = Infinity;
-    Object.entries(zombieObjects).forEach(([id, obj]) => {
-      const d = obj.position.distanceTo(pPos);
-      if (d < 2.2 && d < nd) { nearest = id; nd = d; }
-    });
-    if (nearest) {
-      damageZombie(nearest, 70);
-      if (audioCtx && hitBuffer) playBuffer(hitBuffer);
-    }
-  }
-
-  function damageZombie(id, dmg) {
-    const obj = zombieObjects[id];
-    if (!obj) return;
-    obj.userData.health -= dmg * localPlayer.damageMultiplier;
-    obj.traverse(m => { if (m.material && m.material.emissive) m.material.emissive.setHex(0x442222); });
-    setTimeout(()=>{ obj.traverse(m => { if (m.material && m.material.emissive) m.material.emissive.setHex(0x000000); }); }, 120);
-    if (obj.userData.health <= 0) {
-      if (audioCtx && deathBuffer) playBuffer(deathBuffer);
-      localPlayer.score += 100;
-      scoreEl.textContent = localPlayer.score;
-      const idobj = obj;
-      const start = performance.now();
-      const duration = 450;
-      (function anim() {
-        const t = (performance.now()-start)/duration;
-        if (t < 1) {
-          const scale = 1 - t;
-          idobj.scale.setScalar(scale);
-          requestAnimationFrame(anim);
-        } else {
-          if (Math.random() < 0.18) spawnAmmoPackAt(idobj.position);
-          if (Math.random() < 0.12) spawnHealthPack(idobj.position);
-          // dispose resources
-          idobj.traverse(m => {
-            if (m.geometry) m.geometry.dispose();
-            if (m.material) { if (Array.isArray(m.material)) m.material.forEach(mt=>mt.dispose()); else m.material.dispose(); }
-          });
-          scene.remove(idobj);
-          delete zombieObjects[id]; delete zombies[id];
-        }
-      })();
-    }
-  }
-
-  function playerDied() {
-    if (!gameActive) return;
-    gameActive = false;
-    try { controls.unlock(); } catch(e){}
-    crosshair.style.display = 'none';
-    finalScoreEl.textContent = 'Pontuação final: ' + localPlayer.score;
-    reportEl.textContent = `O sobrevivente ${localPlayer.name} eliminou ${Math.floor(localPlayer.score/100)} zumbis antes de cair.`;
-    gameOverModal.classList.remove('hidden');
-  }
-
-  function updateUI() {
-    healthBar.style.width = Math.max(0, localPlayer.health) + '%';
-    scoreEl.textContent = localPlayer.score;
-    if (localPlayer.damageMultiplier > 1) powerupEl.classList.remove('hidden'); else powerupEl.classList.add('hidden');
-    updateHUD();
-  }
-  function updateHUD() {
-    ammoEl.textContent = localPlayer.ammo;
-    weaponNameEl.textContent = localPlayer.weapon === 'pistol' ? 'Pistola' : 'Katana';
-    magCapEl.textContent = localPlayer.magCap;
-  }
-
-  function switchWeapon() {
-    if (localPlayer.weapon === 'melee') {
-      localPlayer.weapon='pistol';
-      pistolModel.visible = true;
-      meleeModel.visible = false;
-      localPlayer.magCap = 12;
-      localPlayer.ammo = Math.max(localPlayer.ammo, 6);
-    } else {
-      localPlayer.weapon='melee';
-      pistolModel.visible = false;
-      meleeModel.visible = true;
-    }
-    updateHUD();
-  }
-
-  function reload() {
-    if (localPlayer.weapon !== 'pistol') return;
-    localPlayer.ammo = localPlayer.magCap;
-    updateHUD();
-  }
-
-  function interactChest() {
-    localPlayer.damageMultiplier = 2.0;
-    setTimeout(()=>{ localPlayer.damageMultiplier = 1.0; }, 20000);
-  }
-
-  // spawn a generic powerup (double damage)
-  function spawnPowerup() {
-    const pos = localPlayer.position.clone();
-    pos.x += (Math.random()-0.5)*8; pos.z += (Math.random()-0.5)*8;
-    const geo = new THREE.SphereGeometry(0.35,8,8);
-    const mat = new THREE.MeshStandardMaterial({color:0x3bff9a, emissive:0x0f7f5a});
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(pos.x, 0.6, pos.z);
-    mesh.userData = { type: 'doubleDamage', ttl: Date.now() + 20000 };
-    scene.add(mesh);
-    (function check() {
-      if (!mesh.parent) return;
-      const dist = mesh.position.distanceTo(localPlayer.position);
-      if (dist < 2) {
-        localPlayer.damageMultiplier = 2.0;
-        setTimeout(()=>{ localPlayer.damageMultiplier = 1.0; }, 20000);
-        scene.remove(mesh);
-        return;
-      }
-      if (Date.now() > mesh.userData.ttl) { scene.remove(mesh); return; }
-      requestAnimationFrame(check);
-    })();
-  }
-
-  // spawn ammo pack near a position or player
-  function spawnAmmoPackAt(pos) {
-    const p = pos ? pos.clone() : localPlayer.position.clone();
-    p.x += (Math.random()-0.5)*1.5; p.z += (Math.random()-0.5)*1.5;
-    const geo = new THREE.BoxGeometry(0.5,0.25,0.8);
-    const mat = new THREE.MeshStandardMaterial({color:0x3b82f6, emissive:0x1a4fb0});
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(p.x, 0.5, p.z);
-    mesh.userData = { type: 'ammo', value: 6, ttl: Date.now() + 45000 };
-    scene.add(mesh);
-    (function check() {
-      if (!mesh.parent) return;
-      const dist = mesh.position.distanceTo(localPlayer.position);
-      if (dist < 2) {
-        localPlayer.ammo = Math.min(localPlayer.magCap, localPlayer.ammo + mesh.userData.value);
-        updateHUD();
-        scene.remove(mesh);
-        return;
-      }
-      if (Date.now() > mesh.userData.ttl) { scene.remove(mesh); return; }
-      requestAnimationFrame(check);
-    })();
-  }
-  function spawnAmmoPackNearPlayer() { spawnAmmoPackAt(null); }
-
-  function spawnHealthPack(atPos) {
-    const pos = atPos ? atPos.clone() : localPlayer.position.clone();
-    pos.x += (Math.random()-0.5)*4; pos.z += (Math.random()-0.5)*4;
-    const geo = new THREE.BoxGeometry(0.6,0.35,0.6);
-    const mat = new THREE.MeshStandardMaterial({color:0xff6666, emissive:0x331111});
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(pos.x, 0.5, pos.z);
-    mesh.userData = { type: 'health', ttl: Date.now() + 30000 };
-    scene.add(mesh);
-    (function check() {
-      if (!mesh.parent) return;
-      const dist = mesh.position.distanceTo(localPlayer.position);
-      if (dist < 2) {
-        localPlayer.health = Math.min(100, localPlayer.health + 40);
-        scene.remove(mesh);
-        return;
-      }
-      if (Date.now() > mesh.userData.ttl) { scene.remove(mesh); return; }
-      requestAnimationFrame(check);
-    })();
-  }
-
-  function flashCrosshair() {
-    const old = crosshair.style.transform;
-    crosshair.style.transform = 'translate(-50%,-50%) scale(0.8)';
-    setTimeout(()=>{ crosshair.style.transform = old; }, 90);
-  }
-
-  function triggerHitFlash() {
-    hitFlash.style.opacity = '1';
-    setTimeout(()=>{ hitFlash.style.opacity = '0'; }, 120);
-  }
-
-  function playEmptyClick() {
-    if (!audioCtx) return;
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type='triangle'; o.frequency.value = 220;
-    g.gain.value = 0.02;
-    o.connect(g); g.connect(audioCtx.destination);
-    o.start(); setTimeout(()=>{ o.stop(); }, 80);
-  }
-
-  //
-  // Audio helpers
-  //
-  function makeGunShotBuffer() {
-    if (!audioCtx) return null;
-    const ctx = audioCtx;
-    const b = ctx.createBuffer(1, ctx.sampleRate*0.18, ctx.sampleRate);
-    const d = b.getChannelData(0);
-    for (let i=0;i<d.length;i++) d[i] = (Math.random()*2-1) * Math.exp(-i/2000);
-    return b;
-  }
-  function makeHitBuffer() {
-    if (!audioCtx) return null;
-    const ctx = audioCtx;
-    const b = ctx.createBuffer(1, ctx.sampleRate*0.12, ctx.sampleRate);
-    const d = b.getChannelData(0);
-    for (let i=0;i<d.length;i++) d[i] = Math.sin(i*0.03) * Math.exp(-i/1200) * (Math.random()*0.6+0.2);
-    return b;
-  }
-  function makeDeathBuffer() {
-    if (!audioCtx) return null;
-    const ctx = audioCtx;
-    const b = ctx.createBuffer(1, ctx.sampleRate*0.36, ctx.sampleRate);
-    const d = b.getChannelData(0);
-    for (let i=0;i<d.length;i++) d[i] = Math.sin(i*0.008) * Math.exp(-i/3000) * (Math.random()*0.5+0.3);
-    return b;
-  }
-  function playBuffer(buffer) {
-    if (!audioCtx || !buffer) return;
-    const src = audioCtx.createBufferSource();
-    src.buffer = buffer;
-    src.connect(audioCtx.destination);
-    src.start();
-  }
-
-  //
-  // procedural zombie skin generator using canvas -> texture
-  //
-  function generateZombieSkin(seed=0) {
-    const size = 512;
-    const cvs = document.createElement('canvas');
-    cvs.width = cvs.height = size;
-    const ctx = cvs.getContext('2d');
-    const base = `hsl(${Math.floor(80 + Math.random()*40)}, ${20+Math.random()*30}%, ${20+Math.random()*30}%)`;
-    ctx.fillStyle = base; ctx.fillRect(0,0,size,size);
-    for (let i=0;i<40;i++){
-      ctx.fillStyle = `rgba(${50+Math.random()*90}, ${10+Math.random()*90}, ${10+Math.random()*80}, ${0.08+Math.random()*0.28})`;
-      const w = 20 + Math.random()*140;
-      const h = 20 + Math.random()*140;
-      ctx.beginPath();
-      ctx.ellipse(Math.random()*size, Math.random()*size, w, h, Math.random()*Math.PI, 0, Math.PI*2);
-      ctx.fill();
-    }
-    ctx.lineWidth = 6;
-    for (let i=0;i<6;i++){
-      ctx.strokeStyle = `rgba(${80+Math.random()*80},${80+Math.random()*80},${80+Math.random()*60},${0.06})`;
-      ctx.beginPath();
-      ctx.moveTo(Math.random()*size, Math.random()*size);
-      ctx.lineTo(Math.random()*size, Math.random()*size);
-      ctx.stroke();
-    }
-    for (let s=0;s<120;s++){
-      ctx.strokeStyle = `rgba(120,40,30,${0.1+Math.random()*0.2})`;
-      ctx.beginPath();
-      ctx.moveTo(Math.random()*size, Math.random()*size);
-      ctx.lineTo(Math.random()*size, Math.random()*size);
-      ctx.stroke();
-    }
-    const tex = new THREE.CanvasTexture(cvs);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(1,1);
-    return tex;
-  }
-
-  function createPistolModel() {
-    const group = new THREE.Group();
-    const mat = new THREE.MeshStandardMaterial({color:0x111111, roughness:0.6});
-    const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.06,0.06,0.4), mat);
-    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.15,0.05,0.25), mat);
-    grip.position.set(0,-0.08, -0.05);
-    barrel.position.set(0, -0.02, -0.25);
-    group.add(barrel, grip);
-    return group;
-  }
-  
-  function createMeleeModel() {
-    // Modelo de Katana simples
-    const group = new THREE.Group();
-    const bladeMat = new THREE.MeshStandardMaterial({color: 0xcccccc, metalness: 0.9, roughness: 0.3});
-    const handleMat = new THREE.MeshStandardMaterial({color: 0x222222, roughness: 0.8});
-    
-    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, 0.9), bladeMat);
-    blade.position.z = -0.45;
-    
-    const guard = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 0.1), handleMat);
-    guard.position.z = -0.05;
-
-    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.25), handleMat);
-    handle.position.z = 0.08;
-    handle.rotation.x = Math.PI / 2;
-    
-    group.add(blade, guard, handle);
-    return group;
-  }
-  
-  // --- NOVAS FUNÇÕES PARA CARREGAR MODELOS ---
-  function loadGunModel() {
-      if (!NOME_ARQUIVO_ARMA_MTL || !NOME_ARQUIVO_ARMA_OBJ) return;
-      
-      mtlLoader.load(NOME_ARQUIVO_ARMA_MTL, (materials) => {
-          materials.preload();
-          objLoader.setMaterials(materials);
-          objLoader.load(NOME_ARQUIVO_ARMA_OBJ, (object) => {
-              console.log("Arma customizada carregada!", object);
-              camera.remove(pistolModel); // Remove a pistola placeholder
-              
-              // Ajusta a escala e posição da nova arma
-              object.scale.set(0.1, 0.1, 0.1); // <-- Ajuste a escala aqui!
-              object.position.set(0.25, -0.3, -0.6); // <-- Ajuste a posição aqui!
-              object.rotation.y = Math.PI; // <-- Ajuste a rotação aqui!
-              
-              pistolModel = object; // Substitui o placeholder
-              camera.add(pistolModel);
-              switchWeapon(); // Chama para garantir a visibilidade correta
-              switchWeapon();
-          }, null, () => {
-              console.error(`Falha ao carregar OBJ: ${NOME_ARQUIVO_ARMA_OBJ}`);
-          });
-      }, null, () => {
-           console.error(`Falha ao carregar MTL: ${NOME_ARQUIVO_ARMA_MTL}`);
-      });
-  }
-  
-  function loadZombieTemplate() {
-      if (!NOME_ARQUIVO_ZUMBI_FBX) return;
-      
-      fbxLoader.load(NOME_ARQUIVO_ZUMBI_FBX, (object) => {
-          console.log("Modelo de zumbi FBX carregado!", object);
-          // Ajusta escala e sombras
-          object.scale.set(0.01, 0.01, 0.01); // <-- Modelos FBX geralmente são grandes
-          object.traverse((child) => {
-              if (child.isMesh) {
-                  child.castShadow = true;
-                  child.receiveShadow = true;
-              }
-          });
-          zombieTemplate = object; // Salva o modelo para clonar
-      }, null, () => {
-          console.error(`Falha ao carregar FBX: ${NOME_ARQUIVO_ZUMBI_FBX}`);
-      });
-  }
-
-  // download helper (I can create and upload ZIP if you re-authorize)
-  document.getElementById('download').addEventListener('click', () => {
-    alert('Se quiser o ZIP com este projeto, responda "gera o zip" ou autorize o commit com "commita".');
-  });
-
-  // --- Conteúdo de mobile-controls.js ---
-  (function () {
-    const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-    if (!isTouch) return; // Só roda em dispositivos de toque
-
-    const KEYMAP = {
-      up: 'KeyW',
-      down: 'KeyS',
-      left: 'KeyA',
-      right: 'KeyD',
-      melee: 'KeyQ', // Mapeado para 'Q' (switchWeapon)
-      weapon1: 'KeyE', // Mapeado para 'E' (interact)
-      weapon2: 'MobileJump', // Mapeado para 'MobileJump' (pulo customizado)
-    };
-
-    const pressedKeys = new Set();
-
-    function dispatchKey(key, type) {
-      try {
-        const ev = new KeyboardEvent(type === 'down' ? 'keydown' : 'keyup', { code: key, key: key.replace('Key', ''), bubbles: true });
-        window.dispatchEvent(ev);
-      } catch (e) { console.warn('mobile-controls: keyboard event dispatch failed', e); }
-    }
-
-    function pressKeyOnce(key) {
-      if (pressedKeys.has(key)) return;
-      pressedKeys.add(key);
-      dispatchKey(key, 'down');
-    }
-    function releaseKeyOnce(key) {
-      if (!pressedKeys.has(key)) return;
-      pressedKeys.delete(key);
-      dispatchKey(key, 'up');
-    }
-    function pressAndReleaseKey(key) {
-        pressKeyOnce(key);
-        setTimeout(() => releaseKeyOnce(key), 120);
-    }
-
-    // --- Criação do HTML dos Controles ---
-    const controlsContainer = document.createElement('div');
-    controlsContainer.id = 'mobile-controls';
-    controlsContainer.innerHTML = `
-      <div id="mc-left">
-        <div class="mc-joy-base" id="mc-joy">
-          <div class="mc-joy-knob" id="mc-knob"></div>
-        </div>
-      </div>
-      <div id="mc-right">
-        <div class="mc-row">
-           <div class="mc-btn" id="mc-w2" style="font-size: 28px;">🔼</div> <!-- Pulo -->
-           <div class="mc-btn" id="mc-w1" style="font-size: 28px;">🔄</div> <!-- Trocar Arma -->
-        </div>
-        <div class="mc-row">
-           <div class="mc-btn" id="mc-melee" style="font-size: 28px;">✋</div> <!-- Interagir -->
-           <div class="mc-btn" id="mc-fire" style="font-size: 24px; background: rgba(200, 50, 50, 0.4);">ATIRAR</div>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(controlsContainer);
-
-    const joy = document.getElementById('mc-joy');
-    const knob = document.getElementById('mc-knob');
-    let joyRect, centerX, centerY, maxRadius;
-    let activeTouchId = null;
-
-    function updateBounds() {
-      joyRect = joy.getBoundingClientRect();
-      centerX = joyRect.left + joyRect.width / 2;
-      centerY = joyRect.top + joyRect.height / 2;
-      maxRadius = Math.min(joyRect.width, joyRect.height) / 2;
-    }
-    updateBounds();
-    window.addEventListener('resize', updateBounds);
-
-    function onJoyStart(e) {
-      e.preventDefault();
-      updateBounds();
-      const touch = (e.changedTouches && e.changedTouches[0]) || e;
-      activeTouchId = touch.identifier !== undefined ? touch.identifier : 'mouse';
-      moveKnobTo(touch.clientX, touch.clientY);
-    }
-
-    function onJoyMove(e) {
-      if (activeTouchId === null) return;
-      e.preventDefault(); // Adicionado para evitar scroll da página
-      const touches = e.changedTouches || [e];
-      for (let i = 0; i < touches.length; i++) {
-        const t = touches[i];
-        if ((t.identifier !== undefined && t.identifier === activeTouchId) || activeTouchId === 'mouse') {
-          moveKnobTo(t.clientX, t.clientY);
-          break;
-        }
-      }
-    }
-
-    function onJoyEnd(e) {
-      const touches = e.changedTouches || [e];
-      for (let i = 0; i < touches.length; i++) {
-        const t = touches[i];
-        if ((t.identifier !== undefined && t.identifier === activeTouchId) || activeTouchId === 'mouse') {
-          knob.style.left = '50%';
-          knob.style.top = '50%';
-          releaseKeyOnce(KEYMAP.left);
-          releaseKeyOnce(KEYMAP.right);
-          releaseKeyOnce(KEYMAP.up);
-          releaseKeyOnce(KEYMAP.down);
-          activeTouchId = null;
-          break;
-        }
-      }
-    }
-
-    function moveKnobTo(clientX, clientY) {
-      const dx = clientX - centerX;
-      const dy = clientY - centerY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const nx = dx / (dist || 1);
-      const ny = dy / (dist || 1);
-      const limited = Math.min(dist, maxRadius);
-      const posX = centerX + nx * limited;
-      const posY = centerY + ny * limited;
-
-      const leftPct = ((posX - joyRect.left) / joyRect.width) * 100;
-      const topPct = ((posY - joyRect.top) / joyRect.height) * 100;
-      knob.style.left = leftPct + '%';
-      knob.style.top = topPct + '%';
-
-      const deadZone = 0.25 * maxRadius;
-      if (Math.abs(dx) > deadZone) {
-        if (dx < 0) { pressKeyOnce(KEYMAP.left); releaseKeyOnce(KEYMAP.right); }
-        else { pressKeyOnce(KEYMAP.right); releaseKeyOnce(KEYMAP.left); }
-      } else {
-        releaseKeyOnce(KEYMAP.left); releaseKeyOnce(KEYMAP.right);
-      }
-      if (Math.abs(dy) > deadZone) {
-        if (dy < 0) { pressKeyOnce(KEYMAP.up); releaseKeyOnce(KEYMAP.down); }
-        else { pressKeyOnce(KEYMAP.down); releaseKeyOnce(KEYMAP.up); }
-      } else {
-        releaseKeyOnce(KEYMAP.up); releaseKeyOnce(KEYMAP.down);
-      }
-    }
-
-    joy.addEventListener('touchstart', onJoyStart, {passive: false});
-    joy.addEventListener('touchmove', onJoyMove, {passive: false});
-    joy.addEventListener('touchend', onJoyEnd, {passive: false});
-    joy.addEventListener('touchcancel', onJoyEnd, {passive: false});
-    
-    // --- Lógica dos Botões ---
-    const gameCanvas = document.querySelector('canvas') || document.getElementById('game-container') || document.body;
-    let aimTouchIdentifier = null;
-    let lastAimX = 0, lastAimY = 0;
-    const euler = new THREE.Euler(0, 0, 0, 'YXZ'); // Re-adicionado para a mira
-    const PI_2 = Math.PI / 2; // Re-adicionado para a mira
-
-    // Mira (Aim)
-    gameCanvas.addEventListener('touchstart', (e) => {
-        if (!gameActive) return; // Não mexe a câmera se o jogo não começou
-        if (aimTouchIdentifier === null) {
-            const touch = Array.from(e.changedTouches).find(t => !t.target.closest('#mobile-controls'));
-            if (touch) {
-                aimTouchIdentifier = touch.identifier;
-                lastAimX = touch.clientX;
-                lastAimY = touch.clientY;
-            }
-        }
-    }, { passive: false });
-    
-    gameCanvas.addEventListener('touchmove', (e) => {
-        if (aimTouchIdentifier === null || !gameActive) return;
-        e.preventDefault();
-        let touch;
-        for (let i = 0; i < e.changedTouches.length; i++) {
-            if (e.changedTouches[i].identifier === aimTouchIdentifier) {
-                touch = e.changedTouches[i];
-                break;
-            }
-        }
-        if (!touch) return;
-        
-        const deltaX = touch.clientX - lastAimX;
-        const deltaY = touch.clientY - lastAimY;
-        lastAimX = touch.clientX;
-        lastAimY = touch.clientY;
-        
-        // --- LÓGICA DE MIRA REINTEGRADA ---
-        // Gira a câmera manualmente, já que o PointerLock não está ativo no mobile
-        euler.setFromQuaternion(camera.quaternion);
-        euler.y -= deltaX * 0.004; // Rotação Esquerda/Direita
-        euler.x -= deltaY * 0.004; // Rotação Cima/Baixo
-        euler.x = Math.max(-PI_2, Math.min(PI_2, euler.x)); // Limita a rotação vertical
-        camera.quaternion.setFromEuler(euler);
-        // --- FIM DA LÓGICA DE MIRA ---
-        
-    }, { passive: false });
-
-    gameCanvas.addEventListener('touchend', (e) => {
-        if (!gameActive) return;
-        for (const touch of e.changedTouches) {
-            if (touch.identifier === aimTouchIdentifier) {
-                aimTouchIdentifier = null;
-                break;
-            }
-        }
-    });
-
-    function makeButton(id, onTouchStart, onTouchEnd) {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.addEventListener('touchstart', function (ev) { ev.preventDefault(); onTouchStart(); }, {passive:false});
-      el.addEventListener('touchend', function (ev) { ev.preventDefault(); onTouchEnd(); }, {passive:false});
-    }
-
-    makeButton('mc-fire', 
-        () => {
-            if (!gameActive) return;
-            try {
-                // Simula o clique do mouse que a função shoot() espera
-                const ev = new MouseEvent('mousedown', { bubbles: true, clientX: 1, clientY: 1, button: 0 });
-                gameCanvas.dispatchEvent(ev);
-            } catch(e) {}
-        }, 
-        () => {
-             if (!gameActive) return;
-             try {
-                const ev = new MouseEvent('mouseup', { bubbles: true, clientX: 1, clientY: 1, button: 0 });
-                gameCanvas.dispatchEvent(ev);
-            } catch(e) {}
-        }
-    );
-
-    makeButton('mc-melee', ()=>{ pressAndReleaseKey(KEYMAP.weapon1); }, ()=>{}); // Interagir (E)
-    makeButton('mc-w1', ()=>{ pressAndReleaseKey(KEYMAP.melee); }, ()=>{}); // Trocar Arma (Q)
-    // CORREÇÃO: Mapeado para a tecla custom 'MobileJump'
-    makeButton('mc-w2', ()=>{ pressKeyOnce('MobileJump'); }, ()=>{ releaseKeyOnce('MobileJump'); }); // Pulo
-
-
-    // --- Dados das Armas (do JSON) ---
-    window.mobileWeaponsData = {
-      "weapons": [
-        { "id": "shock-pistol", "name": "Shock Pistol", "type": "ranged", "damage": 18, "fireRate": 0.32, "description": "Pistola com descarga elétrica, bom contra inimigos de armadura leve", "icon": "" },
-        { "id": "plasma-rifle", "name": "Plasma Rifle", "type": "ranged", "damage": 34, "fireRate": 0.18, "description": "Arma de alto dano, recuo moderado", "icon": "" },
-        { "id": "blade-x", "name": "Blade X", "type": "melee", "damage": 52, "speed": 1.0, "description": "Lâmina experimental, forte e estilosa", "icon": "" }
-      ],
-      "meleeSkins": [
-        { "id": "carbon-guard", "name": "Carbon Guard", "img": "" },
-        { "id": "neon-edge", "name": "Neon Edge", "img": "" },
-        { "id": "golden-razor", "name": "Golden Razor", "img": "" }
-      ]
-    };
-    
-    window.applyMeleeSkin = function (skinId) {
-        console.log('Aplicando skin (placeholder):', skinId);
-    };
-
-    console.log('mobile-controls: initialized (touch=' + isTouch + ')');
-  })();
-</script>
-
-
+  // debug console gentle hints
+  console.log('Jogo inicializado. Verifique o console Network para 404/CORS em assets (se houver).');
+  console.log('Arquivos esperados (case-sensitive):', FILE_GUN_OBJ, FILE_GUN_MTL, FILE_GUN_PNG, FILE_GROUND, FILE_ZOMBIE_IDLE, FILE_ZOMBIE_RUN, FILE_ZOMBIE_JUMP);
+  </script>
 </body>
 </html>
-
-
