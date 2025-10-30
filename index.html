@@ -784,6 +784,21 @@
     alert('Se quiser o ZIP com este projeto, responda "gera o zip" ou autorize o commit com "commita".');
   });
 
+  <!-- Mobile controls (adicione antes do fechamento </body>) -->
+<link rel="stylesheet" href="mobile-controls.css">
+<script id="mobile-weapons-data" type="application/json">
+<!-- cole aqui o conteúdo do mobile-weapons.json ou deixe vazio para carregar via fetch -->
+</script>
+<script src="mobile-controls.js"></script>
+<script>
+  (function(){
+    try {
+      const el = document.getElementById('mobile-weapons-data');
+      if (el) {
+        window.mobileWeaponsData = JSON.parse(el.textContent || el.innerText || '{}');
+      }
+    } catch(e) { console.warn('mobile-controls: failed to parse mobile-weapons.json', e); }
+  })();
 </script>
 </body>
 </html>
