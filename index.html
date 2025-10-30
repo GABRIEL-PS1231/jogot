@@ -63,7 +63,8 @@ const app = document.getElementById('app');
 const loadingEl = document.getElementById('loading');
 const loadPerc = document.getElementById('loadPerc');
 const errorsEl = document.getElementById('errors');
-let loadCount = 0, loadTotal = 6; // estimativa - ajustaremos conforme carregamentos
+// CORREÇÃO: loadTotal deve ser 5 (1 chao + 1 arma + 3 FBX)
+let loadCount = 0, loadTotal = 5; 
 
 // THREE globals
 let scene, camera, renderer, clock;
@@ -162,8 +163,6 @@ function init(){
   // luzes de preenchimento local para evitar sombras excessivas
   const fill1 = new THREE.PointLight(0x88aaff, 0.12, 40); fill1.position.set(0,4,6); scene.add(fill1);
   const fill2 = new THREE.PointLight(0xffcccc, 0.09, 40); fill2.position.set(-6,2,-6); scene.add(fill2);
-
-  // helpers (off por default). Não adicionamos BoxHelpers agora.
 
   // load gun (três tentativas: MTL+OBJ, OBJ, DAE)
   loadGun();
@@ -515,12 +514,8 @@ function toggleDebug(){
 console.log('Arquivos esperados (case-sensitive):', FILES);
 console.log('Se algo der errado, abra DevTools / Network no navegador para ver 404s.');
 
-/* ======= inicial incrementLoad fallback (para loading UI) ======= */
-setTimeout(()=> {
-  // Garante que loading desapareça mesmo que algum loader trave (safety)
-  incrementLoad(); incrementLoad(); incrementLoad();
-}, 4000);
-
 </script>
 </body>
 </html>
+
+
