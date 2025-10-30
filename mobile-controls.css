@@ -1,0 +1,112 @@
+/* Mobile controls styles */
+#mobile-controls {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 38vh;
+  pointer-events: none;
+  z-index: 10000;
+  font-family: sans-serif;
+}
+
+/* Left side joystick container */
+#mc-left {
+  position: absolute;
+  left: 6%;
+  bottom: 6%;
+  width: 36%;
+  height: 80%;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* Right side buttons container */
+#mc-right {
+  position: absolute;
+  right: 6%;
+  bottom: 6%;
+  width: 36%;
+  height: 80%;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  touch-action: none;
+}
+
+/* Joystick base & knob */
+.mc-joy-base {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 220px;
+  max-height: 220px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mc-joy-knob {
+  position: absolute;
+  width: 38%;
+  height: 38%;
+  max-width: 90px;
+  max-height: 90px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.85);
+  transform: translate(-50%, -50%);
+  left: 50%;
+  top: 50%;
+  transition: background 0.08s ease;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.35);
+}
+
+/* Buttons */
+.mc-btn {
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 18px;
+  user-select: none;
+  -webkit-user-select: none;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.mc-btn:active {
+  transform: scale(0.98);
+  background: rgba(255,255,255,0.18);
+}
+
+/* Small horizontal buttons row */
+.mc-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Label / small helper */
+.mc-label {
+  color: rgba(255,255,255,0.9);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Hide controls for non-touch devices (they can be enabled manually) */
+@media (hover: hover) and (pointer: fine) {
+  #mobile-controls { display: none; }
+}
